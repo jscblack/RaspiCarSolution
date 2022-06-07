@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-07 12:48:16
+LastEditTime : 2022-06-07 12:49:55
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -71,7 +71,7 @@ def cmd_upstream():
             # {'cmd':'getStatus','para':{}}
             # {"ret": 200, "data": {}}
             while True:
-                if not cmd_que.empty:
+                if not cmd_que.empty():
                     cmd=cmd_que.get()
                     cmd_d=json.dumps({"cmd":cmd,"para":{}})
                     client.send(cmd_d.encode('utf-8'))
