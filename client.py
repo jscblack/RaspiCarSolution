@@ -1,19 +1,18 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-07 17:22:58
+LastEditTime : 2022-06-07 17:48:13
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 #客户端
 import tkinter as tk
-import queue
 import socket
-import threading
 import cv2
 import numpy as np
 import time
 import json
 from PIL import Image, ImageTk
+import multiprocessing
 # config area
 vid_port = 18081
 cmd_port = 18082
@@ -34,14 +33,13 @@ cmd_list = [
 # config end
 
 # global area
-que = queue.Queue()
-cmd_que = queue.Queue()
-sta_que = queue.Queue()
-
+# que = queue.Queue()
+# cmd_que = queue.Queue()
+# sta_que = queue.Queue()
 # global end
 
 
-def vid_downstream():
+def vid_downstream(que, cmd_que, sta_que):
     while True:
         client = socket.socket()
         client.connect((ip_addr, vid_port))
@@ -69,7 +67,7 @@ def vid_downstream():
                 break
 
 
-def cmd_upstream():
+def cmd_upstream(que, cmd_que, sta_que):
     client = socket.socket()
     client.connect((ip_addr, cmd_port))
     print('服务端已连接')
@@ -101,7 +99,7 @@ def cmd_upstream():
             break
 
 
-def graphMain():
+def graphMain(que, cmd_que, sta_que):
     root = tk.Tk()
     root.title('RaspiCarSolution')
     # root.iconbitmap('favicon.ico')
@@ -225,7 +223,7 @@ def graphMain():
         temp_val.after(3000, sta_update)
 
     def vid_update():
-        print(que.qsize())
+        # print(que.qsize())
         if not que.empty():
             try:
                 cv2image = que.get()
@@ -244,9 +242,13 @@ def graphMain():
 
 
 if __name__ == "__main__":
-    graph_thread = threading.Thread(target=graphMain)
-    graph_thread.start()
-    vid_thread = threading.Thread(target=vid_downstream)
-    vid_thread.start()
-    cmd_thread = threading.Thread(target=cmd_upstream)
-    cmd_thread.start()
+    que = multiprocessing.Queue()
+    cmd_que = multiprocessing.Queue()
+    sta_que = multiprocessing.Queue()
+
+    graph_process = multiprocessing.Process(target=graphMain, args=(que, cmd_que, sta_que))
+    graph_process.start()
+    vid_process = multiprocessing.Process(target=vid_downstream, args=(que, cmd_que, sta_que))
+    vid_process.start()
+    cmd_process = multiprocessing.Process(target=cmd_upstream, args=(que, cmd_que, sta_que))
+    cmd_process.start()

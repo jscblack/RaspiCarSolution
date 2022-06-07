@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-07 17:26:06
+LastEditTime : 2022-06-07 17:47:14
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -11,7 +11,7 @@ import cv2
 from PIL import ImageGrab
 import numpy as np
 import json
-
+import multiprocessing
 # config area
 vid_port = 18081
 cmd_port = 18082
@@ -20,7 +20,6 @@ ip_addr = localhost
 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
 
 # config end
-
 
 def vid_upstream():
     while True:
@@ -110,23 +109,8 @@ def cmd_downstream():
                 print('监听终止，尝试重启')
                 break
 
-
-# def sec_thread_func():
-#     # TODO
-
-# def thd_thread_func():
-#     # TODO
-
 if __name__ == "__main__":
-    vid_thread = threading.Thread(target=vid_upstream)
-    vid_thread.start()
-    # vid part is done 2022年6月7日09:55:24
-
-    cmd_thread = threading.Thread(target=cmd_downstream)
-    cmd_thread.start()
-    # cmd part is done 2022年6月7日10:17:46
-
-    # sec_thread = threading.Thread(target=sec_thread_func)
-    # thd_thread = threading.Thread(target=thd_thread_func)
-    # sec_thread.start()
-    # thd_thread.start()
+    vid_process = multiprocessing.Process(target=vid_upstream)
+    vid_process.start()
+    cmd_process = multiprocessing.Process(target=cmd_downstream)
+    cmd_process.start()
