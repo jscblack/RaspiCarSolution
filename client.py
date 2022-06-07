@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-07 15:20:26
+LastEditTime : 2022-06-07 17:22:58
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -10,7 +10,6 @@ import queue
 import socket
 import threading
 import cv2
-from matplotlib.font_manager import json_load
 import numpy as np
 import time
 import json
@@ -30,7 +29,7 @@ cmd_list = [
     '{"cmd":"chmod","para":{"to":"auto-lane"}}',
     '{"cmd":"chmod","para":{"to":"auto-avoidance"}}',
     '{"cmd":"stop","para":{}}',
-    '{"cmd":"status","para":{}}',
+    '{"cmd":"envStatus","para":{}}',
 ]
 # config end
 
@@ -38,6 +37,7 @@ cmd_list = [
 que = queue.Queue()
 cmd_que = queue.Queue()
 sta_que = queue.Queue()
+
 # global end
 
 
@@ -56,7 +56,7 @@ def vid_downstream():
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 img_tk = img
                 que.put(img_tk)
-                # cv2.imshow('client_test',im)
+                # cv2.imshow('client_test',img)
                 # key = cv2.waitKey(1) & 0xFF
                 # if key == ord('q'):  # q键推出
                 #     break
@@ -86,7 +86,7 @@ def cmd_upstream():
                     ret = client.recv(512).decode('utf-8')
                     ret_d = json.loads(ret)
                     print('响应结果 ', ret_d["data"])
-                    if cmd==9:
+                    if cmd == 9:
                         sta_que.put(ret_d["data"])
                 time.sleep(0.02)
 
@@ -178,24 +178,24 @@ def graphMain():
         text='Manual',
         font=('Arial', 12),
         value=1,
-        command=lambda: cmd_que.put(5)).place(
-            x=213 + 500, y=550 + 50, width=100, height=50)
+        command=lambda: cmd_que.put(5))
+    manual_but.place(x=213 + 500, y=550 + 50, width=100, height=50)
     auto1_but = tk.Radiobutton(
         root,
         variable=radiobut_val,
         text='Auto-Lane',
         font=('Arial', 12),
         value=2,
-        command=lambda: cmd_que.put(6)).place(
-            x=213 + 600, y=550 + 50, width=100, height=50)
+        command=lambda: cmd_que.put(6))
+    auto1_but.place(x=213 + 600, y=550 + 50, width=100, height=50)
     auto2_but = tk.Radiobutton(
         root,
         variable=radiobut_val,
         text='Auto-Avoidance',
         font=('Arial', 12),
         value=3,
-        command=lambda: cmd_que.put(7)).place(
-            x=213 + 700, y=550 + 50, width=150, height=50)
+        command=lambda: cmd_que.put(7))
+    auto2_but.place(x=213 + 700, y=550 + 50, width=150, height=50)
 
     # 温湿度模块
     temp_label = tk.Label(
@@ -218,27 +218,25 @@ def graphMain():
     def sta_update():
         cmd_que.put(9)
         if not sta_que.empty():
-            sta=sta_que.get()
-            sta=json.loads(sta)
-            # print(sta)
+            sta = sta_que.get()
+            sta = json.loads(sta)
             temp_val.config(text=str(sta["temp"]) + '°')
             humi_val.config(text=str(sta["humi"]) + '%')
-            # sta=json.loads(sta)
-            # temp=sta["temp"]
-            # humi=sta["humi"]
-            # temp_val.config(text=str(temp) + '°')
-            # humi_val.config(text=str(humi) + '%')
         temp_val.after(3000, sta_update)
 
     def vid_update():
+        print(que.qsize())
         if not que.empty():
-            cv2image = que.get()
-            img = Image.fromarray(cv2image)
-            imgtk = ImageTk.PhotoImage(image=img)
-            vid_frame.imgtk = imgtk
-            vid_frame.configure(image=imgtk)
-            # 15ms后重复以连续捕获
-        vid_frame.after(10, vid_update)
+            try:
+                cv2image = que.get()
+                img = Image.fromarray(cv2image)
+                imgtk = ImageTk.PhotoImage(image=img)
+                vid_frame.imgtk = imgtk
+                vid_frame.configure(image=imgtk)
+            except:
+                pass
+        # 15ms后重复以连续捕获
+        vid_frame.after(15, vid_update)
 
     vid_update()
     sta_update()
