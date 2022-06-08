@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-08 19:40:38
+LastEditTime : 2022-06-08 21:40:00
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -17,6 +17,7 @@ import multiprocessing
 vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
+remotehost = '192.168.1.101'
 ip_addr = localhost
 cmd_list = [
     '{"cmd":"ping","para":{}}',
@@ -46,9 +47,10 @@ def vid_downstream(que, cmd_que, sta_que):
         print('服务端已连接')
         while True:
             try:
-                res = client.recv(131072)
+                res = client.recv(65536)
                 # print('已收到服务器信息：', res.decode('utf-8'))
                 # res=client.recv(1024)
+                # print(len(res))
                 nparr = np.frombuffer(res, dtype='uint8')
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 img_tk = Image.fromarray(img)
@@ -79,12 +81,19 @@ def cmd_upstream(que, cmd_que, sta_que):
             while True:
                 if not cmd_que.empty():
                     cmd = cmd_que.get()
-                    client.send(cmd_list[cmd].encode('utf-8'))
-                    ret = client.recv(512).decode('utf-8')
-                    ret_d = json.loads(ret)
-                    print('响应结果 ', ret_d["data"])
-                    if cmd == 9:
-                        sta_que.put(ret_d["data"])
+                    if cmd==9:
+                        tic1=time.perf_counter()
+                        client.send(cmd_list[cmd].encode('utf-8'))
+                        ret = client.recv(512).decode('utf-8')
+                        tic2=time.perf_counter()
+                        ret_d = json.loads(ret)
+                        sta_que.put((ret_d["data"],(tic2-tic1)*1000))
+                    else:
+                        client.send(cmd_list[cmd].encode('utf-8'))
+                        ret = client.recv(512).decode('utf-8')
+                        ret_d = json.loads(ret)
+                        print('响应结果 ', ret_d["data"])
+
                 time.sleep(0.02)
 
         except ConnectionResetError:
@@ -203,24 +212,37 @@ def graphMain(que, cmd_que, sta_que):
         font=('Arial', 15))
     temp_label.place(x=213 + 860, y=150, width=120, height=50)
     temp_val = tk.Label(
-        root, text='23.5°', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
+        root, text='null°', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
     temp_val.place(x=213 + 980, y=150, width=90, height=50)
     humi_label = tk.Label(
         root, text='Humidity', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
     humi_label.place(x=213 + 860, y=200, width=120, height=50)
     humi_val = tk.Label(
-        root, text='54.3%', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
+        root, text='null%', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
     humi_val.place(x=213 + 980, y=200, width=90, height=50)
+
+    rtt_label = tk.Label(
+        root,
+        text='ping',
+        fg='#252526',
+        bg='#F0F0F0',
+        font=('Arial', 15)
+    )
+    rtt_label.place(x=10, y=100, width=40, height=50)
+    rtt_val = tk.Label(
+        root, text='460 ms', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
+    rtt_val.place(x=60, y=100, width=70, height=50)
 
     def sta_update():
         cmd_que.put(9)
         if not sta_que.empty():
-            sta = sta_que.get()
+            sta,ping = sta_que.get()
             sta = json.loads(sta)
             temp_val.config(text=str(sta["temp"]) + '°')
             humi_val.config(text=str(sta["humi"]) + '%')
-        temp_val.after(3000, sta_update)
-
+            rtt_val.config(text=str(ping)[0:4] + 'ms')
+        temp_val.after(2000, sta_update)
+    
     def vid_update():
         # tic1=time.time()
         # print(que.qsize())

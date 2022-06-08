@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-08 19:42:48
+LastEditTime : 2022-06-08 19:45:24
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -23,10 +23,10 @@ def camera_capture(arr_name):
     cap.set(cv2.CAP_PROP_FPS, 60) # fps=60
     # time.sleep(2) # wait for initilize
     if not cap.isOpened():
-        print('open camrea failed')
+        print('<error> 摄像头启动失败')
         exit(0)
     else:
-        print('camrea start runnning...')
+        print('<ok> 摄像头已启动')
         while True:
             ret, frame = cap.read()
             frame=cv2.resize(frame,dsize=[854, 480])

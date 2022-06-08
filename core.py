@@ -1,10 +1,9 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-08 19:38:52
+LastEditTime : 2022-06-08 21:41:18
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
-from ast import arg
 import socket
 import time
 import cv2
@@ -12,13 +11,17 @@ import numpy as np
 import json
 import multiprocessing
 from multiprocessing import shared_memory
+
 import camera
+import fire_recog
+
 # config area
 vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
+remotehost = '192.168.1.101'
 ip_addr = localhost
-encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), 75]
 
 # config end
 
@@ -46,14 +49,14 @@ def vid_upstream(arr_name):
                         # if key == ord('q'):  # q键退出
                         #     break
                         # !!get a cv mat above!!
-                        im_encode = cv2.imencode('.jpg', trans_cv2img,
-                                                    encode_param)[1]
+                        im_encode = cv2.imencode('.WEBP', trans_cv2img,
+                                                 encode_param)[1]
                         data_encode = np.array(im_encode)
                         str_encode = data_encode.tobytes()
                         conn.send(str_encode)
                         # print(len(str_encode))
                         # print('sent',len(str_encode))
-                        time.sleep(0.016)  # 60fps this can be adjusted
+                        time.sleep(0.015)  # 60fps this can be adjusted
 
                     except ConnectionResetError:
                         print('连接断开，等待重新连接')
@@ -87,18 +90,33 @@ def cmd_downstream():
                         req = conn.recv(512)
                         req_prased = json.loads(req.decode('utf-8'))
                         print('解析请求：', req_prased["cmd"], req_prased["para"])
-
                         if req_prased["cmd"] == 'ping':
                             ret_d = json.dumps({"ret": 200, "data": "pong"})
                             conn.send(ret_d.encode('utf-8'))
-
                         elif req_prased["cmd"] == 'envStatus':
                             ret_d = json.dumps({
                                 "ret": 200,
                                 "data": get_status()
                             })
                             conn.send(ret_d.encode('utf-8'))
-
+                        elif req_prased["cmd"] == 'move':
+                            ret_d = json.dumps({
+                                "ret": 200,
+                                "data": 'OK to move!'
+                            })
+                            conn.send(ret_d.encode('utf-8'))
+                        elif req_prased["cmd"] == 'chmod':
+                            ret_d = json.dumps({
+                                "ret": 200,
+                                "data": 'OK to change my mode'
+                            })
+                            conn.send(ret_d.encode('utf-8'))
+                        elif req_prased["cmd"] == 'stop':
+                            ret_d = json.dumps({
+                                "ret": 200,
+                                "data": 'OK to stop!'
+                            })
+                            conn.send(ret_d.encode('utf-8'))
                         else:
                             ret_d = json.dumps({
                                 "ret": 404,
@@ -121,7 +139,7 @@ if __name__ == "__main__":
     cam_main = multiprocessing.Process(
         target=camera.camera_capture, args=(cam_shm.name, ), daemon=True)
     cam_main.start()
-    print('waiting for camera initilizing')
+    print('等待摄像头设备初始化')
     time.sleep(5)
 
     vid_process = multiprocessing.Process(
@@ -129,13 +147,20 @@ if __name__ == "__main__":
     vid_process.start()
     cmd_process = multiprocessing.Process(target=cmd_downstream, daemon=True)
     cmd_process.start()
+    '''
+    fire_que = multiprocessing.Queue()
+
+    fire_process = multiprocessing.Process(
+        target=fire_recog.predict_fire,
+        args=(cam_shm.name, fire_que),
+        daemon=True)
+    '''
     # kill process
+    cam_main.join()
     vid_process.join()
     cmd_process.join()
 
-    # print(cam_shm.name)
-
-
     def on_closing():
+        cam_main.terminate()
         vid_process.terminate()
         cmd_process.terminate()
