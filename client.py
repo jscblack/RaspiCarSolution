@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-07 17:48:13
+LastEditTime : 2022-06-08 19:40:38
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -46,13 +46,12 @@ def vid_downstream(que, cmd_que, sta_que):
         print('服务端已连接')
         while True:
             try:
-                res = client.recv(262144)
+                res = client.recv(131072)
                 # print('已收到服务器信息：', res.decode('utf-8'))
                 # res=client.recv(1024)
-                # print('received',len(res))
                 nparr = np.frombuffer(res, dtype='uint8')
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                img_tk = img
+                img_tk = Image.fromarray(img)
                 que.put(img_tk)
                 # cv2.imshow('client_test',img)
                 # key = cv2.waitKey(1) & 0xFF
@@ -223,18 +222,20 @@ def graphMain(que, cmd_que, sta_que):
         temp_val.after(3000, sta_update)
 
     def vid_update():
+        # tic1=time.time()
         # print(que.qsize())
         if not que.empty():
             try:
-                cv2image = que.get()
-                img = Image.fromarray(cv2image)
+                img = que.get()
                 imgtk = ImageTk.PhotoImage(image=img)
                 vid_frame.imgtk = imgtk
                 vid_frame.configure(image=imgtk)
             except:
                 pass
-        # 15ms后重复以连续捕获
-        vid_frame.after(15, vid_update)
+        # 5ms后重复以连续捕获
+        # tic2=time.time()
+        # print('need',tic2-tic1)
+        vid_frame.after(5, vid_update)
 
     vid_update()
     sta_update()
@@ -252,3 +253,8 @@ if __name__ == "__main__":
     vid_process.start()
     cmd_process = multiprocessing.Process(target=cmd_upstream, args=(que, cmd_que, sta_que))
     cmd_process.start()
+    
+    def on_closing():
+        graph_process.terminate()
+        vid_process.terminate()
+        cmd_process.terminate()

@@ -1,17 +1,18 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-07 17:47:14
+LastEditTime : 2022-06-08 19:38:52
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
-import threading
+from ast import arg
 import socket
 import time
 import cv2
-from PIL import ImageGrab
 import numpy as np
 import json
 import multiprocessing
+from multiprocessing import shared_memory
+import camera
 # config area
 vid_port = 18081
 cmd_port = 18082
@@ -21,7 +22,10 @@ encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
 
 # config end
 
-def vid_upstream():
+
+def vid_upstream(arr_name):
+    shm_ghost = shared_memory.SharedMemory(name=arr_name)
+    arr = np.ndarray(shape=(480, 854, 3), dtype=np.uint8, buffer=shm_ghost.buf)
     while True:
         server = socket.socket()
         server.bind((ip_addr, vid_port))
@@ -33,20 +37,21 @@ def vid_upstream():
                 print('客户端已连接')
                 while True:
                     try:
-                        im = ImageGrab.grab((0, 0, 854, 480))
-                        trans_cv2img = cv2.cvtColor(
-                            np.array(im), cv2.COLOR_RGB2RGBA)  # for display
+                        trans_cv2img = cv2.cvtColor(arr, cv2.COLOR_BGR2RGBA)
+                        # trans_cv2img = cv2.resize(
+                        #     trans_cv2img, dsize=[854, 480])
+                        # print(len(trans_cv2img.tobytes()))
                         # cv2.imshow('server_test',trans_cv2img)
                         # key = cv2.waitKey(1) & 0xFF
                         # if key == ord('q'):  # q键退出
                         #     break
                         # !!get a cv mat above!!
-
                         im_encode = cv2.imencode('.jpg', trans_cv2img,
-                                                 encode_param)[1]
+                                                    encode_param)[1]
                         data_encode = np.array(im_encode)
                         str_encode = data_encode.tobytes()
                         conn.send(str_encode)
+                        # print(len(str_encode))
                         # print('sent',len(str_encode))
                         time.sleep(0.016)  # 60fps this can be adjusted
 
@@ -109,8 +114,28 @@ def cmd_downstream():
                 print('监听终止，尝试重启')
                 break
 
+
 if __name__ == "__main__":
-    vid_process = multiprocessing.Process(target=vid_upstream)
+    cam_shm = shared_memory.SharedMemory(
+        create=True, size=854 * 480 * 3)  # used for cam share
+    cam_main = multiprocessing.Process(
+        target=camera.camera_capture, args=(cam_shm.name, ), daemon=True)
+    cam_main.start()
+    print('waiting for camera initilizing')
+    time.sleep(5)
+
+    vid_process = multiprocessing.Process(
+        target=vid_upstream, args=(cam_shm.name, ), daemon=True)
     vid_process.start()
-    cmd_process = multiprocessing.Process(target=cmd_downstream)
+    cmd_process = multiprocessing.Process(target=cmd_downstream, daemon=True)
     cmd_process.start()
+    # kill process
+    vid_process.join()
+    cmd_process.join()
+
+    # print(cam_shm.name)
+
+
+    def on_closing():
+        vid_process.terminate()
+        cmd_process.terminate()
