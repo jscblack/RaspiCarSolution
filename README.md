@@ -1,6 +1,6 @@
 <!--
  * @Author       : Gehrychiang
- * @LastEditTime : 2022-06-09 12:03:03
+ * @LastEditTime : 2022-06-09 15:22:59
  * @Website      : www.yilantingfeng.site
  * @E-mail       : gehrychiang@aliyun.com
 -->
@@ -16,4 +16,4 @@
 
 2022.6.8 实现摄像头模块，并完成全面性能调优，减少IO瓶颈（摄像头）压力，引入共享内存机制以确保高效执行，进一步完善
 
-2022.6.9 引入日志模块
+2022.6.9 引入日志模块，完善自动回连与等待机制，搭建了车辆的被控线程体系

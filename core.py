@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-09 11:44:07
+LastEditTime : 2022-06-09 15:00:31
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -14,6 +14,7 @@ from multiprocessing import shared_memory
 from loguru import logger
 import camera
 import fire_recog
+import car
 
 # config area
 vid_port = 18081
@@ -22,9 +23,7 @@ localhost = '127.0.0.1'
 remotehost = '192.168.1.101'
 ip_addr = localhost
 encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), 75]
-
 # config end
-
 
 def vid_upstream(arr_name):
     shm_ghost = shared_memory.SharedMemory(name=arr_name)
@@ -33,11 +32,11 @@ def vid_upstream(arr_name):
         server = socket.socket()
         server.bind((ip_addr, vid_port))
         server.listen(5)
-        logger.debug('<视频> 服务端开启监听'+' '+str(ip_addr)+':'+str(vid_port))
+        logger.debug('<视频> 服务端开启监听' + ' ' + str(ip_addr) + ':' + str(vid_port))
         while True:
             try:
                 conn, client_addr = server.accept()
-                logger.debug('<视频> 客户端已连接'+' '+str(client_addr))
+                logger.debug('<视频> 客户端已连接' + ' ' + str(client_addr))
                 while True:
                     try:
                         trans_cv2img = cv2.cvtColor(arr, cv2.COLOR_BGR2RGBA)
@@ -75,21 +74,23 @@ def get_status():
     })
 
 
-def cmd_downstream():
+def cmd_downstream(cmd2car_que):
     while True:
         server = socket.socket()
         server.bind((ip_addr, cmd_port))
         server.listen(5)
-        logger.debug('<指令> 服务端开启监听'+' '+str(ip_addr)+':'+str(cmd_port))
+        logger.debug('<指令> 服务端开启监听' + ' ' + str(ip_addr) + ':' + str(cmd_port))
         while True:
             try:
                 conn, client_addr = server.accept()
-                logger.debug('<指令> 客户端已连接'+' '+str(client_addr))
+                logger.debug('<指令> 客户端已连接' + ' ' + str(client_addr))
                 while True:
                     try:
                         req = conn.recv(512)
                         req_prased = json.loads(req.decode('utf-8'))
-                        logger.debug('<指令> 请求解析'+' '+str(req_prased))
+                        req_data=req_prased["para"]
+                        
+                        logger.debug('<指令> 请求解析' + ' ' + str(req_prased))
                         if req_prased["cmd"] == 'ping':
                             ret_d = json.dumps({"ret": 200, "data": "pong"})
                             conn.send(ret_d.encode('utf-8'))
@@ -100,12 +101,29 @@ def cmd_downstream():
                             })
                             conn.send(ret_d.encode('utf-8'))
                         elif req_prased["cmd"] == 'move':
+                            if req_data["direction"] == 'forward':
+                                cmd2car_que.put(1)
+                            elif req_data["direction"] == 'backward':
+                                cmd2car_que.put(2)
+                            elif req_data["direction"] == 'left':
+                                cmd2car_que.put(3)
+                            elif req_data["direction"] == 'right':
+                                cmd2car_que.put(4)
+
                             ret_d = json.dumps({
                                 "ret": 200,
                                 "data": 'OK to move!'
                             })
                             conn.send(ret_d.encode('utf-8'))
+
                         elif req_prased["cmd"] == 'chmod':
+                            if req_data["to"] == 'manual':
+                                cmd2car_que.put(5)
+                            elif req_data["to"] == 'auto-lane':
+                                cmd2car_que.put(6)
+                            elif req_data["to"] == 'auto-avoidance':
+                                cmd2car_que.put(7)
+
                             ret_d = json.dumps({
                                 "ret": 200,
                                 "data": 'OK to change my mode'
@@ -134,8 +152,14 @@ def cmd_downstream():
 
 
 if __name__ == "__main__":
+    # localIP = socket.gethostbyname(socket.gethostname())
+    # ip_addr = localIP
+    # logger.debug('本机IP为' + ' ' + ip_addr)
+    
     cam_shm = shared_memory.SharedMemory(
         create=True, size=854 * 480 * 3)  # used for cam share
+    cmd2car_que = multiprocessing.Queue()
+
     cam_main = multiprocessing.Process(
         target=camera.camera_capture, args=(cam_shm.name, ), daemon=True)
     logger.debug('启动摄像头进程')
@@ -144,8 +168,13 @@ if __name__ == "__main__":
     vid_process = multiprocessing.Process(
         target=vid_upstream, args=(cam_shm.name, ), daemon=True)
     vid_process.start()
-    cmd_process = multiprocessing.Process(target=cmd_downstream, daemon=True)
+    cmd_process = multiprocessing.Process(
+        target=cmd_downstream, args=(cmd2car_que, ), daemon=True)
     cmd_process.start()
+
+    car_process = multiprocessing.Process(
+        target=car.car_main, args=(cam_shm.name, cmd2car_que), daemon=True)
+    car_process.start()
     '''
     fire_que = multiprocessing.Queue()
 
@@ -154,12 +183,15 @@ if __name__ == "__main__":
         args=(cam_shm.name, fire_que),
         daemon=True)
     '''
+
     # kill process
     cam_main.join()
     vid_process.join()
     cmd_process.join()
+    car_process.join()
 
     def on_closing():
         cam_main.terminate()
         vid_process.terminate()
         cmd_process.terminate()
+        car_process.terminate()

@@ -1,10 +1,11 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-09 11:54:15
+LastEditTime : 2022-06-09 17:16:43
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 #客户端
+from os import getcwd
 import tkinter as tk
 import socket
 import cv2
@@ -19,8 +20,8 @@ from loguru import logger
 vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
-remotehost = '192.168.1.101'
-ip_addr = localhost
+remotehost = '192.168.1.100'
+ip_addr = remotehost
 cmd_list = [
     '{"cmd":"ping","para":{}}',
     '{"cmd":"move","para":{"direction":"forward"}}',
@@ -33,6 +34,7 @@ cmd_list = [
     '{"cmd":"stop","para":{}}',
     '{"cmd":"envStatus","para":{}}',
 ]
+
 # config end
 
 # global area
@@ -44,75 +46,109 @@ cmd_list = [
 
 def vid_downstream(que, cmd_que, sta_que):
     while True:
-        client = socket.socket()
-        client.connect((ip_addr, vid_port))
-        logger.debug('已连接到服务端')
-        while True:
-            try:
-                res = client.recv(65536)
-                # print('已收到服务器信息：', res.decode('utf-8'))
-                # res=client.recv(1024)
-                # print(len(res))
-                nparr = np.frombuffer(res, dtype='uint8')
-                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                img_tk = Image.fromarray(img)
-                que.put(img_tk)
-                # cv2.imshow('client_test',img)
-                # key = cv2.waitKey(1) & 0xFF
-                # if key == ord('q'):  # q键推出
-                #     break
-            except ConnectionResetError:
-                logger.debug('连接断开，等待重新连接')
-                client.close()
-                break
-            except Exception:
-                logger.debug('连接终止，尝试重启')
-                break
+        try:
+            client = socket.socket()
+            client.connect((ip_addr, vid_port))
+            logger.debug('已连接到服务端')
+            while True:
+                try:
+                    res = client.recv(65536)
+                    # print('已收到服务器信息：', res.decode('utf-8'))
+                    # res=client.recv(1024)
+                    # print(len(res))
+                    nparr = np.frombuffer(res, dtype='uint8')
+                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    img_tk = Image.fromarray(img)
+                    que.put(img_tk)
+                    # cv2.imshow('client_test',img)
+                    # key = cv2.waitKey(1) & 0xFF
+                    # if key == ord('q'):  # q键推出
+                    #     break
+                except ConnectionResetError:
+                    logger.error('连接断开，等待重新连接')
+                    client.close()
+                    break
+                except Exception:
+                    logger.error('连接终止，尝试重启')
+                    break
+        except Exception:
+            logger.error('服务器连接失败，3秒后尝试重启')
+            time.sleep(1)
+            logger.error('服务器连接失败，2秒后尝试重启')
+            time.sleep(1)
+            logger.error('服务器连接失败，1秒后尝试重启')
+            time.sleep(1)
+            while not cmd_que.empty():
+                cmd_que.get()
 
 
 def cmd_upstream(que, cmd_que, sta_que):
     while True:
-        client = socket.socket()
-        client.connect((ip_addr, cmd_port))
-        logger.debug('已连接到服务端')
-        while True:
-            try:
-                # cmd is a json-like string
-                # {"cmd":"move","para":{"direction":"forward"}}
-                # {'cmd':'getStatus','para':{}}
-                # {"ret": 200, "data": {}}
-                while True:
-                    if not cmd_que.empty():
-                        cmd = cmd_que.get()
-                        if cmd==9:
-                            tic1=time.perf_counter()
-                            client.send(cmd_list[cmd].encode('utf-8'))
-                            ret = client.recv(512).decode('utf-8')
-                            tic2=time.perf_counter()
-                            ret_d = json.loads(ret)
-                            sta_que.put((ret_d["data"],(tic2-tic1)*1000))
-                        else:
-                            client.send(cmd_list[cmd].encode('utf-8'))
-                            ret = client.recv(512).decode('utf-8')
-                            ret_d = json.loads(ret)
-                            logger.debug('收到服务器响应'+' '+ str(ret_d))
+        try:
+            client = socket.socket()
+            client.connect((ip_addr, cmd_port))
+            logger.debug('已连接到服务端')
+            while True:
+                try:
+                    # cmd is a json-like string
+                    # {"cmd":"move","para":{"direction":"forward"}}
+                    # {'cmd':'getStatus','para':{}}
+                    # {"ret": 200, "data": {}}
+                    while True:
+                        if not cmd_que.empty():
+                            cmd = cmd_que.get()
+                            if cmd == 9:
+                                tic1 = time.perf_counter()
+                                client.send(cmd_list[cmd].encode('utf-8'))
+                                ret = client.recv(512).decode('utf-8')
+                                tic2 = time.perf_counter()
+                                ret_d = json.loads(ret)
+                                sta_que.put((ret_d["data"],
+                                             (tic2 - tic1) * 1000))
+                            else:
+                                client.send(cmd_list[cmd].encode('utf-8'))
+                                ret = client.recv(512).decode('utf-8')
+                                ret_d = json.loads(ret)
+                                logger.debug('收到服务器响应' + ' ' + str(ret_d))
 
-                    time.sleep(0.02)
+                        time.sleep(0.02)
 
-            except ConnectionResetError:
-                logger.debug('连接断开，等待重新连接')
-                client.close()
-                break
-            except Exception:
-                logger.debug('连接终止，尝试重启')
-                client.close()
-                break
+                except ConnectionResetError:
+                    logger.error('连接断开，等待重新连接')
+                    client.close()
+                    break
+                except Exception:
+                    logger.error('连接终止，尝试重启')
+                    client.close()
+                    break
+        except Exception:
+            logger.error('服务器连接失败，3秒后尝试重启')
+            time.sleep(1)
+            logger.error('服务器连接失败，2秒后尝试重启')
+            time.sleep(1)
+            logger.error('服务器连接失败，1秒后尝试重启')
+            time.sleep(1)
+            while not cmd_que.empty():
+                cmd_que.get()
 
 
 def graphMain(que, cmd_que, sta_que):
     root = tk.Tk()
+    #static area
+    up_arrow_img = tk.PhotoImage(file='RaspiCarSolution\\static\\up_arrow.png')
+    down_arrow_img = tk.PhotoImage(
+        file='RaspiCarSolution\\static\\down_arrow.png')
+    left_arrow_img = tk.PhotoImage(
+        file='RaspiCarSolution\\static\\left_arrow.png')
+    right_arrow_img = tk.PhotoImage(
+        file='RaspiCarSolution\\static\\right_arrow.png')
+    stop_img = tk.PhotoImage(file='RaspiCarSolution\\static\\stop.png')
+    ping_img = tk.PhotoImage(file='RaspiCarSolution\\static\\ping.png')
+    temperature_img = tk.PhotoImage(file='RaspiCarSolution\\static\\temperature.png')
+    humidity_img = tk.PhotoImage(file='RaspiCarSolution\\static\\humidity.png')
+    
     root.title('RaspiCarSolution')
-    # root.iconbitmap('favicon.ico')
+    root.iconbitmap('RaspiCarSolution\\favicon.ico')
     root.geometry('1280x720')
     root.resizable(False, False)
     root.configure(background='#F0F0F0')
@@ -138,26 +174,21 @@ def graphMain(que, cmd_que, sta_que):
         radiobut_val.set(event - 4)
 
     forward_but = tk.Button(
-        root, text='↑', font=('Arial', 16),
-        command=lambda: sendMoveCmd(1)).place(
-            x=213 + 50, y=550, width=50, height=50)
-    backward_but = tk.Button(
-        root, text='↓', font=('Arial', 16),
-        command=lambda: sendMoveCmd(2)).place(
-            x=213 + 50, y=550 + 100, width=50, height=50)
-    left_but = tk.Button(
-        root, text='←', font=('Arial', 16),
-        command=lambda: sendMoveCmd(3)).place(
-            x=213, y=550 + 50, width=50, height=50)
-    right_but = tk.Button(
-        root, text='→', font=('Arial', 16),
-        command=lambda: sendMoveCmd(4)).place(
-            x=213 + 100, y=550 + 50, width=50, height=50)
-    stop_but = tk.Button(
-        root, text='X', font=('Arial', 16),
-        command=lambda: sendMoveCmd(8)).place(
-            x=213 + 50, y=550 + 50, width=50, height=50)
+        root, image=up_arrow_img, command=lambda: sendMoveCmd(1))
+    forward_but.place(x=213 + 50, y=550, width=50, height=50)
 
+    backward_but = tk.Button(
+        root, image=down_arrow_img, command=lambda: sendMoveCmd(2))
+    backward_but.place(x=213 + 50, y=550 + 100, width=50, height=50)
+    left_but = tk.Button(
+        root, image=left_arrow_img, command=lambda: sendMoveCmd(3))
+    left_but.place(x=213, y=550 + 50, width=50, height=50)
+    right_but = tk.Button(
+        root, image=right_arrow_img, command=lambda: sendMoveCmd(4))
+    right_but.place(x=213 + 100, y=550 + 50, width=50, height=50)
+    stop_but = tk.Button(root, image=stop_img, command=lambda: sendMoveCmd(8))
+    stop_but.place(x=213 + 50, y=550 + 50, width=50, height=50)
+    stop_but.bind('<KeyPress-x>', sendMoveCmd(8))
     # 按键捕获
     root.bind('<KeyPress-Up>', lambda event: sendMoveCmd(1))
     root.bind('<KeyPress-Down>', lambda event: sendMoveCmd(2))
@@ -178,58 +209,50 @@ def graphMain(que, cmd_que, sta_que):
         text='Running Mode',
         fg='#252526',
         bg='#F0F0F0',
-        font=('Arial', 15))
-    mode_label.place(x=213 + 300, y=550 + 50, width=200, height=50)
+        font=('Arial', 17))
+    mode_label.place(x=213 + 250, y=550 + 50, width=200, height=50)
     manual_but = tk.Radiobutton(
         root,
         variable=radiobut_val,
         text='Manual',
-        font=('Arial', 12),
+        font=('Arial', 15),
         value=1,
         command=lambda: cmd_que.put(5))
-    manual_but.place(x=213 + 500, y=550 + 50, width=100, height=50)
+    manual_but.place(x=213 + 450, y=550 + 50, width=90, height=50)
     auto1_but = tk.Radiobutton(
         root,
         variable=radiobut_val,
         text='Auto-Lane',
-        font=('Arial', 12),
+        font=('Arial', 15),
         value=2,
         command=lambda: cmd_que.put(6))
-    auto1_but.place(x=213 + 600, y=550 + 50, width=100, height=50)
+    auto1_but.place(x=213 + 550, y=550 + 50, width=120, height=50)
     auto2_but = tk.Radiobutton(
         root,
         variable=radiobut_val,
         text='Auto-Avoidance',
-        font=('Arial', 12),
+        font=('Arial', 15),
         value=3,
         command=lambda: cmd_que.put(7))
-    auto2_but.place(x=213 + 700, y=550 + 50, width=150, height=50)
+    auto2_but.place(x=213 + 675, y=550 + 50, width=170, height=50)
 
     # 温湿度模块
     temp_label = tk.Label(
         root,
-        text='Temperature',
-        fg='#252526',
-        bg='#F0F0F0',
-        font=('Arial', 15))
-    temp_label.place(x=213 + 860, y=150, width=120, height=50)
+        image=temperature_img)
+    temp_label.place(x=213 + 880, y=150, width=100, height=50)
     temp_val = tk.Label(
-        root, text='null°', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
-    temp_val.place(x=213 + 980, y=150, width=90, height=50)
+        root, text='null°C', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
+    temp_val.place(x=213 + 950, y=150, width=90, height=50)
     humi_label = tk.Label(
-        root, text='Humidity', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
-    humi_label.place(x=213 + 860, y=200, width=120, height=50)
+        root, image=humidity_img)
+    humi_label.place(x=213 + 880, y=200, width=100, height=50)
     humi_val = tk.Label(
         root, text='null%', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
-    humi_val.place(x=213 + 980, y=200, width=90, height=50)
+    humi_val.place(x=213 + 950, y=200, width=90, height=50)
 
     rtt_label = tk.Label(
-        root,
-        text='ping',
-        fg='#252526',
-        bg='#F0F0F0',
-        font=('Arial', 15)
-    )
+        root, image=ping_img, fg='#252526', bg='#F0F0F0', font=('Arial', 15))
     rtt_label.place(x=10, y=100, width=40, height=50)
     rtt_val = tk.Label(
         root, text='460 ms', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
@@ -238,13 +261,13 @@ def graphMain(que, cmd_que, sta_que):
     def sta_update():
         cmd_que.put(9)
         if not sta_que.empty():
-            sta,ping = sta_que.get()
+            sta, ping = sta_que.get()
             sta = json.loads(sta)
-            temp_val.config(text=str(sta["temp"]) + '°')
+            temp_val.config(text=str(sta["temp"]) + '°C')
             humi_val.config(text=str(sta["humi"]) + '%')
             rtt_val.config(text=str(ping)[0:4] + 'ms')
         temp_val.after(2000, sta_update)
-    
+
     def vid_update():
         # tic1=time.time()
         # print(que.qsize())
@@ -271,13 +294,18 @@ if __name__ == "__main__":
     cmd_que = multiprocessing.Queue()
     sta_que = multiprocessing.Queue()
 
-    graph_process = multiprocessing.Process(target=graphMain, args=(que, cmd_que, sta_que))
+    graph_process = multiprocessing.Process(
+        target=graphMain, args=(que, cmd_que, sta_que))
     graph_process.start()
-    vid_process = multiprocessing.Process(target=vid_downstream, args=(que, cmd_que, sta_que))
+    vid_process = multiprocessing.Process(
+        target=vid_downstream, args=(que, cmd_que, sta_que))
     vid_process.start()
-    cmd_process = multiprocessing.Process(target=cmd_upstream, args=(que, cmd_que, sta_que))
+    cmd_process = multiprocessing.Process(
+        target=cmd_upstream, args=(que, cmd_que, sta_que))
+
     cmd_process.start()
-    
+
+
     def on_closing():
         graph_process.terminate()
         vid_process.terminate()
