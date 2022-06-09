@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-08 21:40:00
+LastEditTime : 2022-06-09 11:54:15
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -13,6 +13,8 @@ import time
 import json
 from PIL import Image, ImageTk
 import multiprocessing
+from loguru import logger
+
 # config area
 vid_port = 18081
 cmd_port = 18082
@@ -44,7 +46,7 @@ def vid_downstream(que, cmd_que, sta_que):
     while True:
         client = socket.socket()
         client.connect((ip_addr, vid_port))
-        print('服务端已连接')
+        logger.debug('已连接到服务端')
         while True:
             try:
                 res = client.recv(65536)
@@ -60,51 +62,51 @@ def vid_downstream(que, cmd_que, sta_que):
                 # if key == ord('q'):  # q键推出
                 #     break
             except ConnectionResetError:
-                print('连接断开，等待重新连接')
+                logger.debug('连接断开，等待重新连接')
                 client.close()
                 break
             except Exception:
-                print('连接终止，尝试重启')
+                logger.debug('连接终止，尝试重启')
                 break
 
 
 def cmd_upstream(que, cmd_que, sta_que):
-    client = socket.socket()
-    client.connect((ip_addr, cmd_port))
-    print('服务端已连接')
     while True:
-        try:
-            # cmd is a json-like string
-            # {"cmd":"move","para":{"direction":"forward"}}
-            # {'cmd':'getStatus','para':{}}
-            # {"ret": 200, "data": {}}
-            while True:
-                if not cmd_que.empty():
-                    cmd = cmd_que.get()
-                    if cmd==9:
-                        tic1=time.perf_counter()
-                        client.send(cmd_list[cmd].encode('utf-8'))
-                        ret = client.recv(512).decode('utf-8')
-                        tic2=time.perf_counter()
-                        ret_d = json.loads(ret)
-                        sta_que.put((ret_d["data"],(tic2-tic1)*1000))
-                    else:
-                        client.send(cmd_list[cmd].encode('utf-8'))
-                        ret = client.recv(512).decode('utf-8')
-                        ret_d = json.loads(ret)
-                        print('响应结果 ', ret_d["data"])
+        client = socket.socket()
+        client.connect((ip_addr, cmd_port))
+        logger.debug('已连接到服务端')
+        while True:
+            try:
+                # cmd is a json-like string
+                # {"cmd":"move","para":{"direction":"forward"}}
+                # {'cmd':'getStatus','para':{}}
+                # {"ret": 200, "data": {}}
+                while True:
+                    if not cmd_que.empty():
+                        cmd = cmd_que.get()
+                        if cmd==9:
+                            tic1=time.perf_counter()
+                            client.send(cmd_list[cmd].encode('utf-8'))
+                            ret = client.recv(512).decode('utf-8')
+                            tic2=time.perf_counter()
+                            ret_d = json.loads(ret)
+                            sta_que.put((ret_d["data"],(tic2-tic1)*1000))
+                        else:
+                            client.send(cmd_list[cmd].encode('utf-8'))
+                            ret = client.recv(512).decode('utf-8')
+                            ret_d = json.loads(ret)
+                            logger.debug('收到服务器响应'+' '+ str(ret_d))
 
-                time.sleep(0.02)
+                    time.sleep(0.02)
 
-        except ConnectionResetError:
-            print('连接断开，等待重新连接')
-            client.close()
-            break
-        except Exception:
-            print('连接终止，尝试重启')
-            time.sleep(10)
-            client.close()
-            break
+            except ConnectionResetError:
+                logger.debug('连接断开，等待重新连接')
+                client.close()
+                break
+            except Exception:
+                logger.debug('连接终止，尝试重启')
+                client.close()
+                break
 
 
 def graphMain(que, cmd_que, sta_que):

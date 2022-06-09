@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-08 21:41:18
+LastEditTime : 2022-06-09 11:44:07
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -11,7 +11,7 @@ import numpy as np
 import json
 import multiprocessing
 from multiprocessing import shared_memory
-
+from loguru import logger
 import camera
 import fire_recog
 
@@ -33,11 +33,11 @@ def vid_upstream(arr_name):
         server = socket.socket()
         server.bind((ip_addr, vid_port))
         server.listen(5)
-        print('服务端开启监听')
+        logger.debug('<视频> 服务端开启监听'+' '+str(ip_addr)+':'+str(vid_port))
         while True:
             try:
                 conn, client_addr = server.accept()
-                print('客户端已连接')
+                logger.debug('<视频> 客户端已连接'+' '+str(client_addr))
                 while True:
                     try:
                         trans_cv2img = cv2.cvtColor(arr, cv2.COLOR_BGR2RGBA)
@@ -59,11 +59,11 @@ def vid_upstream(arr_name):
                         time.sleep(0.015)  # 60fps this can be adjusted
 
                     except ConnectionResetError:
-                        print('连接断开，等待重新连接')
+                        logger.error('<视频> 连接断开，等待重新连接')
                         conn.close()
                         break
             except Exception:
-                print('监听终止，尝试重启')
+                logger.error('<视频> 监听终止，尝试重启')
                 break
 
 
@@ -80,16 +80,16 @@ def cmd_downstream():
         server = socket.socket()
         server.bind((ip_addr, cmd_port))
         server.listen(5)
-        print('服务端开启监听')
+        logger.debug('<指令> 服务端开启监听'+' '+str(ip_addr)+':'+str(cmd_port))
         while True:
             try:
                 conn, client_addr = server.accept()
-                print('客户端已连接')
+                logger.debug('<指令> 客户端已连接'+' '+str(client_addr))
                 while True:
                     try:
                         req = conn.recv(512)
                         req_prased = json.loads(req.decode('utf-8'))
-                        print('解析请求：', req_prased["cmd"], req_prased["para"])
+                        logger.debug('<指令> 请求解析'+' '+str(req_prased))
                         if req_prased["cmd"] == 'ping':
                             ret_d = json.dumps({"ret": 200, "data": "pong"})
                             conn.send(ret_d.encode('utf-8'))
@@ -125,11 +125,11 @@ def cmd_downstream():
                             conn.send(ret_d.encode('utf-8'))
 
                     except ConnectionResetError:
-                        print('连接断开，等待重新连接')
+                        logger.error('<指令> 连接断开，等待重新连接')
                         conn.close()
                         break
             except Exception:
-                print('监听终止，尝试重启')
+                logger.error('<指令> 监听终止，尝试重启')
                 break
 
 
@@ -138,9 +138,8 @@ if __name__ == "__main__":
         create=True, size=854 * 480 * 3)  # used for cam share
     cam_main = multiprocessing.Process(
         target=camera.camera_capture, args=(cam_shm.name, ), daemon=True)
+    logger.debug('启动摄像头进程')
     cam_main.start()
-    print('等待摄像头设备初始化')
-    time.sleep(5)
 
     vid_process = multiprocessing.Process(
         target=vid_upstream, args=(cam_shm.name, ), daemon=True)

@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-08 19:45:24
+LastEditTime : 2022-06-09 11:39:48
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -11,6 +11,7 @@ E-mail       : gehrychiang@aliyun.com
 import cv2
 from multiprocessing import  shared_memory
 import numpy as np
+from loguru import logger
 
 def camera_capture(arr_name):
     shm_ghost=shared_memory.SharedMemory(name=arr_name)
@@ -22,11 +23,14 @@ def camera_capture(arr_name):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)  # height=1080
     cap.set(cv2.CAP_PROP_FPS, 60) # fps=60
     # time.sleep(2) # wait for initilize
+    if(cap.get(cv2.CAP_PROP_FRAME_WIDTH)!=1280 or cap.get(cv2.CAP_PROP_FRAME_HEIGHT)!=720 or cap.get(cv2.CAP_PROP_FPS)!=60):
+        logger.warning('摄像头配置失败，已回滚为默认设置'+str(cap.get(cv2.CAP_PROP_FRAME_WIDTH))+' '+str(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))+' '+str(cap.get(cv2.CAP_PROP_FPS)))
+    
     if not cap.isOpened():
-        print('<error> 摄像头启动失败')
+        logger.error('摄像头启动失败')
         exit(0)
     else:
-        print('<ok> 摄像头已启动')
+        logger.debug('摄像头已启动')
         while True:
             ret, frame = cap.read()
             frame=cv2.resize(frame,dsize=[854, 480])
@@ -46,7 +50,8 @@ def camera_capture(arr_name):
 #         if cv2.waitKey(1) & 0xFF == ord('q'):  #等待按键q按下
 #             break
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    pass
     # cam_lock=multiprocessing.Lock()
     # cam_shm=shared_memory.SharedMemory(create=True,size=854*480*3)
     # print(cam_shm.name)
