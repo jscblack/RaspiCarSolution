@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-09 17:16:43
+LastEditTime : 2022-06-12 13:30:10
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -17,10 +17,10 @@ import multiprocessing
 from loguru import logger
 
 # config area
-vid_port = 18081
+vid_port = 8080
 cmd_port = 18082
 localhost = '127.0.0.1'
-remotehost = '192.168.1.100'
+remotehost = '192.168.1.102'
 ip_addr = remotehost
 cmd_list = [
     '{"cmd":"ping","para":{}}',
@@ -47,27 +47,22 @@ cmd_list = [
 def vid_downstream(que, cmd_que, sta_que):
     while True:
         try:
-            client = socket.socket()
-            client.connect((ip_addr, vid_port))
+            url = 'http://'+str(ip_addr)+':'+str(vid_port)+'/?action=stream'
+            cap = cv2.VideoCapture(url)
             logger.debug('已连接到服务端')
             while True:
                 try:
-                    res = client.recv(65536)
+                    ret, frame = cap.read()
                     # print('已收到服务器信息：', res.decode('utf-8'))
                     # res=client.recv(1024)
                     # print(len(res))
-                    nparr = np.frombuffer(res, dtype='uint8')
-                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
                     img_tk = Image.fromarray(img)
                     que.put(img_tk)
                     # cv2.imshow('client_test',img)
                     # key = cv2.waitKey(1) & 0xFF
                     # if key == ord('q'):  # q键推出
                     #     break
-                except ConnectionResetError:
-                    logger.error('连接断开，等待重新连接')
-                    client.close()
-                    break
                 except Exception:
                     logger.error('连接终止，尝试重启')
                     break
@@ -297,13 +292,14 @@ if __name__ == "__main__":
     graph_process = multiprocessing.Process(
         target=graphMain, args=(que, cmd_que, sta_que))
     graph_process.start()
+    
     vid_process = multiprocessing.Process(
         target=vid_downstream, args=(que, cmd_que, sta_que))
     vid_process.start()
+
     cmd_process = multiprocessing.Process(
         target=cmd_upstream, args=(que, cmd_que, sta_que))
-
-    cmd_process.start()
+    # cmd_process.start()
 
 
     def on_closing():
