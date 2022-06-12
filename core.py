@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-12 16:11:39
+LastEditTime : 2022-06-12 17:25:25
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -85,6 +85,7 @@ def cmd_downstream(cmd2car_que):
                             })
                             conn.send(ret_d.encode('utf-8'))
                         elif req_prased["cmd"] == 'stop':
+                            cmd2car_que.put(8)
                             ret_d = json.dumps({
                                 "ret": 200,
                                 "data": 'OK to stop!'

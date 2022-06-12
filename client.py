@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-12 16:27:23
+LastEditTime : 2022-06-12 17:02:27
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -57,12 +57,14 @@ def vid_downstream(que, cmd_que, sta_que):
                     # res=client.recv(1024)
                     # print(len(res))
                     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+                    img=cv2.flip(img, -1)
                     img_tk = Image.fromarray(img)
                     que.put(img_tk)
                     # cv2.imshow('client_test',img)
                     # key = cv2.waitKey(1) & 0xFF
                     # if key == ord('q'):  # q键推出
                     #     break
+                    time.sleep(0.015)
                 except Exception:
                     logger.error('连接终止，尝试重启')
                     break
@@ -190,9 +192,9 @@ def graphMain(que, cmd_que, sta_que):
     root.bind('<KeyPress-Left>', lambda event: sendMoveCmd(3))
     root.bind('<KeyPress-Right>', lambda event: sendMoveCmd(4))
     root.bind('<KeyPress-w>', lambda event: sendMoveCmd(1))
-    root.bind('<KeyPress-d>', lambda event: sendMoveCmd(2))
+    root.bind('<KeyPress-s>', lambda event: sendMoveCmd(2))
     root.bind('<KeyPress-a>', lambda event: sendMoveCmd(3))
-    root.bind('<KeyPress-s>', lambda event: sendMoveCmd(4))
+    root.bind('<KeyPress-d>', lambda event: sendMoveCmd(4))
     root.bind('<KeyPress-x>', lambda event: sendMoveCmd(8))
     root.bind('<KeyPress-1>', lambda event: sendChmodCmd(5))
     root.bind('<KeyPress-2>', lambda event: sendChmodCmd(6))
@@ -299,7 +301,7 @@ if __name__ == "__main__":
 
     cmd_process = multiprocessing.Process(
         target=cmd_upstream, args=(que, cmd_que, sta_que))
-    # cmd_process.start()
+    cmd_process.start()
 
 
     def on_closing():
