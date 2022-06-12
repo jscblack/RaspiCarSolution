@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-12 13:30:10
+LastEditTime : 2022-06-12 16:27:23
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -17,7 +17,7 @@ import multiprocessing
 from loguru import logger
 
 # config area
-vid_port = 8080
+vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
 remotehost = '192.168.1.102'

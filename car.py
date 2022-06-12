@@ -1,13 +1,13 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-09 14:50:53
+LastEditTime : 2022-06-12 16:30:11
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 from loguru import logger
 
 
-def car_main(arr_name, cmd_que):
+def car_main(cmd_que):
     # shm_ghost = shared_memory.SharedMemory(name=arr_name)
     # img = np.ndarray(shape=(480, 854, 3), dtype=np.uint8, buffer=shm_ghost.buf)
     # init
