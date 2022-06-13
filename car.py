@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-13 16:30:55
+LastEditTime : 2022-06-13 19:31:40
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -182,60 +182,6 @@ def car_main(cmd_que):
         pwm_bled.start(0)
         logger.debug('车辆动作机构初始化完成')
 
-    # #小车前进
-    # def run():
-    #     GPIO.output(IN1, GPIO.HIGH)
-    #     GPIO.output(IN2, GPIO.LOW)
-    #     GPIO.output(IN3, GPIO.HIGH)
-    #     GPIO.output(IN4, GPIO.LOW)
-    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
-
-    # #小车后退
-    # def back():
-    #     GPIO.output(IN1, GPIO.LOW)
-    #     GPIO.output(IN2, GPIO.HIGH)
-    #     GPIO.output(IN3, GPIO.LOW)
-    #     GPIO.output(IN4, GPIO.HIGH)
-    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
-
-    # #小车左转
-    # def left():
-    #     GPIO.output(IN1, GPIO.LOW)
-    #     GPIO.output(IN2, GPIO.LOW)
-    #     GPIO.output(IN3, GPIO.HIGH)
-    #     GPIO.output(IN4, GPIO.LOW)
-    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
-
-    # #小车右转
-    # def right():
-    #     GPIO.output(IN1, GPIO.HIGH)
-    #     GPIO.output(IN2, GPIO.LOW)
-    #     GPIO.output(IN3, GPIO.LOW)
-    #     GPIO.output(IN4, GPIO.LOW)
-    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
-
-    # #小车原地左转
-    # def spin_left():
-    #     GPIO.output(IN1, GPIO.LOW)
-    #     GPIO.output(IN2, GPIO.HIGH)
-    #     GPIO.output(IN3, GPIO.HIGH)
-    #     GPIO.output(IN4, GPIO.LOW)
-    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedControl))
-    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedControl))
-
-    # #小车原地右转
-    # def spin_right():
-    #     GPIO.output(IN1, GPIO.HIGH)
-    #     GPIO.output(IN2, GPIO.LOW)
-    #     GPIO.output(IN3, GPIO.LOW)
-    #     GPIO.output(IN4, GPIO.HIGH)
-    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedControl))
-    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedControl))
-
     #小车停止
     def brake():
         CarSpeedLeft = 0
@@ -266,14 +212,14 @@ def car_main(cmd_que):
     }
 
     def motor_ctl_thread(status):
-        Gradient=2
+        Gradient=1
         aheading=True
         CarSpeedLeft = 0
         CarSpeedRight = 0
         maxSpeed = 50
         global pwm_ENA
         global pwm_ENB
-
+        logger.debug('车辆动作线程开始运行')
         while True:
             # 只允许与行进方向相同时的加速行进+转向
             # 不允许向前行进时backward转向
@@ -403,7 +349,6 @@ def car_main(cmd_que):
                 #1111
                 pass
             
-            
             # logger.debug(str(CarSpeedLeft)+'----'+str(CarSpeedRight))
             
             if CarSpeedLeft > 0:
@@ -424,9 +369,21 @@ def car_main(cmd_que):
                 GPIO.output(IN4, GPIO.HIGH)
                 pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
 
-            time.sleep(0.5)
+            time.sleep(0.2)
 
-    
+    active={
+        'up':False,
+        'down':False,
+        'left':False,
+        'right':False
+    }
+
+    def cam_ctl_thread(active):
+        while True:
+            time.sleep(0.2)
+        pass
+            
+
     init()
     running_mode = 1
     # mode 1 2 3
@@ -438,6 +395,9 @@ def car_main(cmd_que):
     motor_ctl_thread = threading.Thread(
         target=motor_ctl_thread, args=(status, ))
     motor_ctl_thread.start()
+    cam_ctl_thread = threading.Thread(
+        target=cam_ctl_thread, args=(active, ))
+    cam_ctl_thread.start()
     while True:
         if not cmd_que.empty():
             cmd = cmd_que.get()
@@ -475,7 +435,6 @@ def car_main(cmd_que):
                 # set gpio here
                 status['right'] = True
                 logger.debug('车辆右转')
-
             elif cmd == 5:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
@@ -483,7 +442,6 @@ def car_main(cmd_que):
                 # set gpio here
                 status['forward'] = False
                 logger.debug('车辆停止给油')
-
             elif cmd == 6:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
@@ -491,7 +449,6 @@ def car_main(cmd_que):
                 # set gpio here
                 status['backward'] = False
                 logger.debug('车辆停止给油')
-
             elif cmd == 7:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
@@ -499,7 +456,6 @@ def car_main(cmd_que):
                 # set gpio here
                 status['left'] = False
                 logger.debug('车辆停止给油')
-
             elif cmd == 8:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
@@ -507,7 +463,6 @@ def car_main(cmd_que):
                 # set gpio here
                 status['right'] = False
                 logger.debug('车辆停止给油')
-
             elif cmd == 9:
                 running_mode = 1
                 # set gpio here
@@ -528,6 +483,30 @@ def car_main(cmd_que):
                 brake()
                 shutdown()
                 logger.debug('车辆停止')
+            elif cmd == 13:
+                active['up'] = True
+                logger.debug('摄像头开始向上')
+            elif cmd == 14:
+                active['down'] = True
+                logger.debug('摄像头开始向下')
+            elif cmd == 15:
+                active['left'] = True
+                logger.debug('摄像头开始向左')
+            elif cmd == 16:
+                active['right'] = True
+                logger.debug('摄像头开始向右')
+            elif cmd == 17:
+                active['up'] = False
+                logger.debug('摄像头停止向上')
+            elif cmd == 18:
+                active['down'] = False
+                logger.debug('摄像头停止向下')
+            elif cmd == 19:
+                active['left'] = False
+                logger.debug('摄像头停止向左')
+            elif cmd == 20:
+                active['right'] = False
+                logger.debug('摄像头停止向右')
         time.sleep(0.1)
 
 if __name__ == "__main__":

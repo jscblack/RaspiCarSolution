@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-13 16:30:49
+LastEditTime : 2022-06-13 19:17:09
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -113,6 +113,28 @@ def cmd_downstream(cmd2car_que,temp_que):
                             })
                             conn.send(ret_d.encode('utf-8'))
 
+                        elif req_prased["cmd"] == 'cam':
+                            if req_data["direction"] == 'up':
+                                if req_data["sign"] == 'start':
+                                    cmd2car_que.put(14)
+                                else:
+                                    cmd2car_que.put(18)
+                            if req_data["direction"] == 'down':
+                                if req_data["sign"] == 'start':
+                                    cmd2car_que.put(15)
+                                else:
+                                    cmd2car_que.put(19)
+                            if req_data["direction"] == 'left':
+                                if req_data["sign"] == 'start':
+                                    cmd2car_que.put(16)
+                                else:
+                                    cmd2car_que.put(20)
+                            if req_data["direction"] == 'right':
+                                if req_data["sign"] == 'start':
+                                    cmd2car_que.put(17)
+                                else:
+                                    cmd2car_que.put(21)
+                        
                         else:
                             ret_d = json.dumps({
                                 "ret": 404,

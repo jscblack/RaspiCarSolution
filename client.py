@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-13 15:27:49
+LastEditTime : 2022-06-13 19:13:46
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -15,7 +15,6 @@ from PIL import Image, ImageTk
 import multiprocessing
 from loguru import logger
 import fire_recog
-import math
 
 # config area
 vid_port = 18081
@@ -38,15 +37,16 @@ cmd_list = [
     '{"cmd":"chmod","para":{"to":"auto-avoidance"}}',  #11
     '{"cmd":"stop","para":{}}',  #12
     '{"cmd":"envStatus","para":{}}',  #13
+    '{"cmd":"cam","para":{"direction":"up","sign":"start"}}',  #14
+    '{"cmd":"cam","para":{"direction":"down","sign":"start"}}',  #15
+    '{"cmd":"cam","para":{"direction":"left","sign":"start"}}',  #16
+    '{"cmd":"cam","para":{"direction":"right","sign":"start"}}',  #17
+    '{"cmd":"cam","para":{"direction":"up","sign":"stop"}}',  #18
+    '{"cmd":"cam","para":{"direction":"down","sign":"stop"}}',  #19
+    '{"cmd":"cam","para":{"direction":"left","sign":"stop"}}',  #20
+    '{"cmd":"cam","para":{"direction":"right","sign":"stop"}}',  #21
 ]
-
 # config end
-
-# global area
-# que = queue.Queue()
-# cmd_que = queue.Queue()
-# sta_que = queue.Queue()
-# global end
 
 def vid_downstream(que, cmd_que, vid_que_for_fire):
     while True:
@@ -170,30 +170,45 @@ def graphMain(que, cmd_que, sta_que, fire_que):
     vid_frame = tk.Label(root)
     vid_frame.place(x=213, y=55, width=854, height=480)
 
-    # 四个方向键按钮
-    key_down = [False, False, False, False, False]
-
+    # wsad按钮
+    wsad_key_down = [False, False, False, False, False]
     def sendMoveCmd(event):
         if event >= 1 and event <= 4:
-            if key_down[event] == False:
+            if wsad_key_down[event] == False:
                 cmd_que.put(event)
-                key_down[event] = True
+                wsad_key_down[event] = True
             else:
                 pass
         elif event == 12:
             cmd_que.put(event)
         else:
-            if key_down[event - 4] == False:
+            if wsad_key_down[event - 4] == False:
                 cmd_que.put(event - 4)
                 cmd_que.put(event)
             else:
-                key_down[event - 4] = False
+                wsad_key_down[event - 4] = False
                 cmd_que.put(event)
         radiobut_val.set(1)
 
     def sendChmodCmd(event):
         cmd_que.put(event)
         radiobut_val.set(event - 8)
+
+    navi_key_down=[False,False,False,False]
+    def sendCamCmd(event):
+        if event >= 14 and event <= 17:
+            if navi_key_down[event] == False:
+                cmd_que.put(event)
+                navi_key_down[event] = True
+            else:
+                pass
+        else:
+            if navi_key_down[event - 14] == False:
+                cmd_que.put(event - 14)
+                cmd_que.put(event)
+            else:
+                navi_key_down[event - 14] = False
+                cmd_que.put(event)
 
     forward_but = tk.Button(
         root, image=up_arrow_img, command=lambda: sendMoveCmd(5))
@@ -212,16 +227,20 @@ def graphMain(que, cmd_que, sta_que, fire_que):
     stop_but.place(x=213 + 50, y=550 + 50, width=50, height=50)
 
     # 按键捕获
-    # root.bind('<KeyPress-Up>', lambda event: sendMoveCmd(1))
-    # root.bind('<KeyPress-Down>', lambda event: sendMoveCmd(2))
-    # root.bind('<KeyPress-Left>', lambda event: sendMoveCmd(3))
-    # root.bind('<KeyPress-Right>', lambda event: sendMoveCmd(4))
+    root.bind('<KeyPress-Up>', lambda event: sendCamCmd(14))
+    root.bind('<KeyPress-Down>', lambda event: sendCamCmd(15))
+    root.bind('<KeyPress-Left>', lambda event: sendCamCmd(16))
+    root.bind('<KeyPress-Right>', lambda event: sendCamCmd(17))
+    root.bind('<KeyRelease-Up>', lambda event: sendCamCmd(18))
+    root.bind('<KeyRelease-Down>', lambda event: sendCamCmd(19))
+    root.bind('<KeyRelease-Left>', lambda event: sendCamCmd(20))
+    root.bind('<KeyRelease-Right>', lambda event: sendCamCmd(21))
+
 
     root.bind('<KeyPress-w>', lambda event: sendMoveCmd(1))
     root.bind('<KeyPress-s>', lambda event: sendMoveCmd(2))
     root.bind('<KeyPress-a>', lambda event: sendMoveCmd(3))
     root.bind('<KeyPress-d>', lambda event: sendMoveCmd(4))
-
     root.bind('<KeyRelease-w>', lambda event: sendMoveCmd(5))
     root.bind('<KeyRelease-s>', lambda event: sendMoveCmd(6))
     root.bind('<KeyRelease-a>', lambda event: sendMoveCmd(7))
@@ -292,15 +311,14 @@ def graphMain(que, cmd_que, sta_que, fire_que):
             temp_val.config(text=str(sta["temp"]) + '°C')
             humi_val.config(text=str(sta["humi"]) + '%')
             rtt_val.config(text=str(ping)[0:4] + 'ms')
-        if not fire_que.empty():
-            fire,fire_img = fire_que.get()
-            logger.debug('fire detected: ' + str(fire))
-            cv2.imshow('fire', fire_img)
+        # if not fire_que.empty():
+        #     fire,fire_img = fire_que.get()
+        #     logger.debug('fire detected: ' + str(fire))
+        #     cv2.imshow('fire', fire_img)
 
         temp_val.after(2000, sta_update)
 
     def vid_update():
-        # tic1=time.time()
         # print(que.qsize())
         if not que.empty():
             try:
@@ -310,9 +328,6 @@ def graphMain(que, cmd_que, sta_que, fire_que):
                 vid_frame.configure(image=imgtk)
             except:
                 pass
-        # 5ms后重复以连续捕获
-        # tic2=time.time()
-        # print('need',tic2-tic1)
         vid_frame.after(5, vid_update)
 
     vid_update()
