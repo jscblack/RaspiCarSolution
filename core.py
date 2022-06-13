@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-12 23:03:23
+LastEditTime : 2022-06-13 16:30:49
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -12,31 +12,30 @@ import json
 import multiprocessing
 from loguru import logger
 import car
-
+import sensor_base
 # config area
 cmd_port = 18082
 localhost = '127.0.0.1'
 remotehost = '192.168.1.102'
-ip_addr = localhost
+ip_addr = remotehost
 encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), 75]
 
 # config end
 
 
-def get_status():
-    # 随机返回一个温湿度
-    return json.dumps({
-        "temp": np.random.randint(20, 30),
-        "humi": np.random.randint(40, 60)
-    })
+# def get_status():
+#     # 随机返回一个温湿度
+#     return 
 
 
-def cmd_downstream(cmd2car_que):
+def cmd_downstream(cmd2car_que,temp_que):
     while True:
         server = socket.socket()
         server.bind((ip_addr, cmd_port))
         server.listen(5)
         logger.debug('<指令> 服务端开启监听' + ' ' + str(ip_addr) + ':' + str(cmd_port))
+        cache_temp=0
+        cache_humd=0
         while True:
             try:
                 conn, client_addr = server.accept()
@@ -52,9 +51,15 @@ def cmd_downstream(cmd2car_que):
                             conn.send(ret_d.encode('utf-8'))
 
                         elif req_prased["cmd"] == 'envStatus':
+                            if not temp_que.empty():
+                                cache_temp,cache_humd=temp_que.get()
+                            
                             ret_d = json.dumps({
                                 "ret": 200,
-                                "data": get_status()
+                                "data": json.dumps({
+                                    "temp": cache_temp,
+                                    "humi": cache_humd
+                                    })
                             })
                             conn.send(ret_d.encode('utf-8'))
 
@@ -130,27 +135,24 @@ if __name__ == "__main__":
     # logger.debug('本机IP为' + ' ' + ip_addr)
 
     cmd2car_que = multiprocessing.Queue()
-
+    temp_que=multiprocessing.Queue(maxsize=1)
     cmd_process = multiprocessing.Process(
-        target=cmd_downstream, args=(cmd2car_que, ), daemon=True)
+        target=cmd_downstream, args=(cmd2car_que,temp_que), daemon=True)
     cmd_process.start()
 
     car_process = multiprocessing.Process(
         target=car.car_main, args=(cmd2car_que, ), daemon=True)
     car_process.start()
-    '''
-    fire_que = multiprocessing.Queue()
 
-    fire_process = multiprocessing.Process(
-        target=fire_recog.predict_fire,
-        args=(cam_shm.name, fire_que),
-        daemon=True)
-    '''
+    temp_process=multiprocessing.Process(
+        target=sensor_base.get_temp, args=(temp_que, ), daemon=True)
+    temp_process.start()
 
     # kill process
     cmd_process.join()
     car_process.join()
-
+    # fire_process.join()
     def on_closing():
         cmd_process.terminate()
         car_process.terminate()
+        # fire_process.terminate()

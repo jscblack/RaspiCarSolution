@@ -1,11 +1,11 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-13 09:11:04
+LastEditTime : 2022-06-13 16:30:55
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 from loguru import logger
-# import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import threading
 import time
 
@@ -110,10 +110,10 @@ def car_main(cmd_que):
     g_CarState = 0
     g_ServoState = 0
     #小车速度变量
-    Gradient=5
-    aheading=True
-    CarSpeedLeft = 0
-    CarSpeedRight = 0
+    # Gradient=5
+    # aheading=True
+    # CarSpeedLeft = 0
+    # CarSpeedRight = 0
     #寻迹，避障，寻光变量
     infrared_track_value = ''
     infrared_avoid_value = ''
@@ -145,7 +145,7 @@ def car_main(cmd_que):
         GPIO.setup(IN3, GPIO.OUT, initial=GPIO.LOW)
         GPIO.setup(IN4, GPIO.OUT, initial=GPIO.LOW)
         GPIO.setup(buzzer, GPIO.OUT, initial=GPIO.HIGH)
-        GPIO.setup(OutfirePin, GPIO.OUT)
+        # GPIO.setup(OutfirePin, GPIO.OUT)
         GPIO.setup(EchoPin, GPIO.IN)
         GPIO.setup(TrigPin, GPIO.OUT)
         GPIO.setup(LED_R, GPIO.OUT)
@@ -182,41 +182,41 @@ def car_main(cmd_que):
         pwm_bled.start(0)
         logger.debug('车辆动作机构初始化完成')
 
-    #小车前进
-    def run():
-        GPIO.output(IN1, GPIO.HIGH)
-        GPIO.output(IN2, GPIO.LOW)
-        GPIO.output(IN3, GPIO.HIGH)
-        GPIO.output(IN4, GPIO.LOW)
-        pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-        pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
+    # #小车前进
+    # def run():
+    #     GPIO.output(IN1, GPIO.HIGH)
+    #     GPIO.output(IN2, GPIO.LOW)
+    #     GPIO.output(IN3, GPIO.HIGH)
+    #     GPIO.output(IN4, GPIO.LOW)
+    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
+    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
 
-    #小车后退
-    def back():
-        GPIO.output(IN1, GPIO.LOW)
-        GPIO.output(IN2, GPIO.HIGH)
-        GPIO.output(IN3, GPIO.LOW)
-        GPIO.output(IN4, GPIO.HIGH)
-        pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-        pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
+    # #小车后退
+    # def back():
+    #     GPIO.output(IN1, GPIO.LOW)
+    #     GPIO.output(IN2, GPIO.HIGH)
+    #     GPIO.output(IN3, GPIO.LOW)
+    #     GPIO.output(IN4, GPIO.HIGH)
+    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
+    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
 
-    #小车左转
-    def left():
-        GPIO.output(IN1, GPIO.LOW)
-        GPIO.output(IN2, GPIO.LOW)
-        GPIO.output(IN3, GPIO.HIGH)
-        GPIO.output(IN4, GPIO.LOW)
-        pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-        pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
+    # #小车左转
+    # def left():
+    #     GPIO.output(IN1, GPIO.LOW)
+    #     GPIO.output(IN2, GPIO.LOW)
+    #     GPIO.output(IN3, GPIO.HIGH)
+    #     GPIO.output(IN4, GPIO.LOW)
+    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
+    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
 
-    #小车右转
-    def right():
-        GPIO.output(IN1, GPIO.HIGH)
-        GPIO.output(IN2, GPIO.LOW)
-        GPIO.output(IN3, GPIO.LOW)
-        GPIO.output(IN4, GPIO.LOW)
-        pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-        pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
+    # #小车右转
+    # def right():
+    #     GPIO.output(IN1, GPIO.HIGH)
+    #     GPIO.output(IN2, GPIO.LOW)
+    #     GPIO.output(IN3, GPIO.LOW)
+    #     GPIO.output(IN4, GPIO.LOW)
+    #     pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
+    #     pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
 
     # #小车原地左转
     # def spin_left():
@@ -257,18 +257,23 @@ def car_main(cmd_que):
         pwm_UpDownServo.stop()
         GPIO.cleanup()
         logger.debug('车辆动作机构解构完成')
+    
     status = {
         'forward': False,
         'backward': False,
         'left': False,
         'right': False
     }
-    maxSpeed = 50
 
     def motor_ctl_thread(status):
-        # CarSpeedLeft = 0
-        # CarSpeedRight = 0
-        
+        Gradient=2
+        aheading=True
+        CarSpeedLeft = 0
+        CarSpeedRight = 0
+        maxSpeed = 50
+        global pwm_ENA
+        global pwm_ENB
+
         while True:
             # 只允许与行进方向相同时的加速行进+转向
             # 不允许向前行进时backward转向
@@ -283,7 +288,7 @@ def car_main(cmd_que):
                         CarSpeedLeft=max(CarSpeedLeft-Gradient, 0)
                         CarSpeedRight=max(CarSpeedRight-Gradient, 0)
                         if(CarSpeedLeft==0 and CarSpeedRight==0):
-                            aheading=False
+                            pass
                 else:
                     if CarSpeedLeft != CarSpeedRight:
                         CarSpeedLeft = max(CarSpeedLeft, CarSpeedRight)
@@ -292,23 +297,29 @@ def car_main(cmd_que):
                         CarSpeedLeft=min(CarSpeedLeft+Gradient, 0)
                         CarSpeedRight=min(CarSpeedRight+Gradient, 0)
                         if(CarSpeedLeft==0 and CarSpeedRight==0):
-                            aheading=True
+                            pass
             elif status['forward'] and not status['backward'] and not status['left'] and not status['right']:
                 #1000
                 if aheading:
+                    if CarSpeedLeft != CarSpeedRight:
+                        CarSpeedLeft = min(CarSpeedLeft, CarSpeedRight)
+                        CarSpeedRight = min(CarSpeedLeft, CarSpeedRight)
                     CarSpeedLeft = min(CarSpeedLeft+Gradient, maxSpeed)
                     CarSpeedRight = min(CarSpeedRight+Gradient, maxSpeed)
                 else:
-                    CarSpeedLeft = min(CarSpeedLeft+2*Gradient, 0)
-                    CarSpeedRight = min(CarSpeedRight+2*Gradient, 0)
+                    if CarSpeedLeft != CarSpeedRight:
+                        CarSpeedLeft = max(CarSpeedLeft, CarSpeedRight)
+                        CarSpeedRight = max(CarSpeedLeft, CarSpeedRight)
+                    CarSpeedLeft = min(CarSpeedLeft+3*Gradient, 0)
+                    CarSpeedRight = min(CarSpeedRight+3*Gradient, 0)
                     if(CarSpeedLeft==0 and CarSpeedRight==0):
                         aheading=True
             elif not status['forward'] and status['backward'] and not status['left'] and not status['right']:
                 #0100
                 # need further implementation
                 if aheading:
-                    CarSpeedLeft=max(CarSpeedLeft-2*Gradient, 0)
-                    CarSpeedRight=max(CarSpeedRight-2*Gradient, 0)
+                    CarSpeedLeft=max(CarSpeedLeft-3*Gradient, 0)
+                    CarSpeedRight=max(CarSpeedRight-3*Gradient, 0)
                     if(CarSpeedLeft==0 and CarSpeedRight==0):
                         aheading=False
                 else:
@@ -317,19 +328,59 @@ def car_main(cmd_que):
                         
             elif not status['forward'] and not status['backward'] and status['left'] and not status['right']:
                 #0010
-                pass
+                if aheading:
+                    if CarSpeedLeft != CarSpeedRight:
+                        CarSpeedLeft = min(CarSpeedLeft, CarSpeedRight)
+                        CarSpeedRight = min(CarSpeedLeft, CarSpeedRight)
+                    CarSpeedLeft=max(CarSpeedLeft-3*Gradient, 0)
+                    CarSpeedRight=max(CarSpeedRight-Gradient, 0)
+                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        pass
+                else:
+                    if CarSpeedLeft != CarSpeedRight:
+                        CarSpeedLeft = max(CarSpeedLeft, CarSpeedRight)
+                        CarSpeedRight = max(CarSpeedLeft, CarSpeedRight)
+                    CarSpeedLeft=min(CarSpeedLeft+3*Gradient, 0)
+                    CarSpeedRight=min(CarSpeedRight+Gradient, 0)
+                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        pass
+
             elif not status['forward'] and not status['backward'] and not status['left'] and status['right']:
                 #0001
-                pass
+                if aheading:
+                    CarSpeedLeft=max(CarSpeedLeft-Gradient, 0)
+                    CarSpeedRight=max(CarSpeedRight-3*Gradient, 0)
+                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        pass
+                else:
+                    CarSpeedLeft=min(CarSpeedLeft+Gradient, 0)
+                    CarSpeedRight=min(CarSpeedRight+3*Gradient, 0)
+                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        pass
             elif status['forward'] and status['backward'] and not status['left'] and not status['right']:
                 #1100
                 pass
             elif status['forward'] and not status['backward'] and status['left'] and not status['right']:
                 #1010
-                pass
+                if aheading:
+                    CarSpeedLeft = min(CarSpeedLeft+Gradient, maxSpeed)
+                    CarSpeedRight = min(CarSpeedRight+4*Gradient, maxSpeed)
+                else:
+                    CarSpeedLeft = min(CarSpeedLeft+2*Gradient, 0)
+                    CarSpeedRight = min(CarSpeedRight+2*Gradient, 0)
+                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        aheading=True
+
             elif status['forward'] and not status['backward'] and not status['left'] and status['right']:
                 #1001
-                pass
+                if aheading:
+                    CarSpeedLeft = min(CarSpeedLeft+4*Gradient, maxSpeed)
+                    CarSpeedRight = min(CarSpeedRight+Gradient, maxSpeed)
+                else:
+                    CarSpeedLeft = min(CarSpeedLeft+2*Gradient, 0)
+                    CarSpeedRight = min(CarSpeedRight+2*Gradient, 0)
+                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        aheading=True
             elif not status['forward'] and status['backward'] and status['left'] and not status['right']:
                 #0110
                 pass
@@ -352,27 +403,31 @@ def car_main(cmd_que):
                 #1111
                 pass
             
+            
+            # logger.debug(str(CarSpeedLeft)+'----'+str(CarSpeedRight))
+            
             if CarSpeedLeft > 0:
                 GPIO.output(IN1, GPIO.HIGH)
-                GPIO.output(IN3, GPIO.LOW)
+                GPIO.output(IN2, GPIO.LOW)
                 pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
             else:
                 GPIO.output(IN1, GPIO.LOW)
-                GPIO.output(IN3, GPIO.HIGH)
-                pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-            if CarSpeedRight > 0:
                 GPIO.output(IN2, GPIO.HIGH)
+                pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
+            
+            if CarSpeedRight > 0:
+                GPIO.output(IN3, GPIO.HIGH)
                 GPIO.output(IN4, GPIO.LOW)
                 pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
             else:
-                GPIO.output(IN2, GPIO.LOW)
+                GPIO.output(IN3, GPIO.LOW)
                 GPIO.output(IN4, GPIO.HIGH)
                 pwm_ENB.ChangeDutyCycle(abs(CarSpeedRight))
 
-            time.sleep(1)
+            time.sleep(0.5)
 
-    # init()
-
+    
+    init()
     running_mode = 1
     # mode 1 2 3
     # 1: manual
@@ -474,7 +529,6 @@ def car_main(cmd_que):
                 shutdown()
                 logger.debug('车辆停止')
         time.sleep(0.1)
-
 
 if __name__ == "__main__":
     pass

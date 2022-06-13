@@ -1,11 +1,10 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-12 23:03:47
+LastEditTime : 2022-06-13 15:27:49
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 #客户端
-from os import getcwd
 import tkinter as tk
 import socket
 import cv2
@@ -15,14 +14,15 @@ import json
 from PIL import Image, ImageTk
 import multiprocessing
 from loguru import logger
-from sqlalchemy import false
+import fire_recog
+import math
 
 # config area
 vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
 remotehost = '192.168.1.102'
-ip_addr = localhost
+ip_addr = remotehost
 cmd_list = [
     '{"cmd":"ping","para":"{}"}',  #0
     '{"cmd":"move","para":{"direction":"forward","behavior":"accelerate"}}',  #1
@@ -48,8 +48,7 @@ cmd_list = [
 # sta_que = queue.Queue()
 # global end
 
-
-def vid_downstream(que, cmd_que, sta_que):
+def vid_downstream(que, cmd_que, vid_que_for_fire):
     while True:
         try:
             url = 'http://' + str(ip_addr) + ':' + str(
@@ -59,13 +58,16 @@ def vid_downstream(que, cmd_que, sta_que):
             while True:
                 try:
                     ret, frame = cap.read()
+                    # 0-1
+                    frame = cv2.flip(frame, -1)
                     # print('已收到服务器信息：', res.decode('utf-8'))
                     # res=client.recv(1024)
                     # print(len(res))
                     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
-                    img = cv2.flip(img, -1)
                     img_tk = Image.fromarray(img)
                     que.put(img_tk)
+                    if vid_que_for_fire.empty():
+                        vid_que_for_fire.put(frame)
                     # cv2.imshow('client_test',img)
                     # key = cv2.waitKey(1) & 0xFF
                     # if key == ord('q'):  # q键推出
@@ -135,7 +137,7 @@ def cmd_upstream(que, cmd_que, sta_que):
                 cmd_que.get()
 
 
-def graphMain(que, cmd_que, sta_que):
+def graphMain(que, cmd_que, sta_que, fire_que):
     root = tk.Tk()
     #static area
     up_arrow_img = tk.PhotoImage(file='RaspiCarSolution\\static\\up_arrow.png')
@@ -290,6 +292,11 @@ def graphMain(que, cmd_que, sta_que):
             temp_val.config(text=str(sta["temp"]) + '°C')
             humi_val.config(text=str(sta["humi"]) + '%')
             rtt_val.config(text=str(ping)[0:4] + 'ms')
+        if not fire_que.empty():
+            fire,fire_img = fire_que.get()
+            logger.debug('fire detected: ' + str(fire))
+            cv2.imshow('fire', fire_img)
+
         temp_val.after(2000, sta_update)
 
     def vid_update():
@@ -314,23 +321,31 @@ def graphMain(que, cmd_que, sta_que):
 
 
 if __name__ == "__main__":
-    que = multiprocessing.Queue()
+    vid_que = multiprocessing.Queue()
     cmd_que = multiprocessing.Queue()
     sta_que = multiprocessing.Queue()
+    vid_que_for_fire = multiprocessing.Queue(maxsize=1)
+    fire_que = multiprocessing.Queue()
 
     graph_process = multiprocessing.Process(
-        target=graphMain, args=(que, cmd_que, sta_que))
+        target=graphMain, args=(vid_que, cmd_que, sta_que, fire_que))
     graph_process.start()
 
     vid_process = multiprocessing.Process(
-        target=vid_downstream, args=(que, cmd_que, sta_que))
-    # vid_process.start()
+        target=vid_downstream, args=(vid_que, cmd_que,vid_que_for_fire))
+    vid_process.start()
 
     cmd_process = multiprocessing.Process(
-        target=cmd_upstream, args=(que, cmd_que, sta_que))
+        target=cmd_upstream, args=(vid_que, cmd_que, sta_que))
     cmd_process.start()
+
+    # url = 'http://' + str(ip_addr) + ':' + str(vid_port) + '/?action=stream'
+    # fire_process = multiprocessing.Process(
+    #     target=fire_recog.predict_fire, args=(fire_que,vid_que_for_fire))
+    # fire_process.start()
 
     def on_closing():
         graph_process.terminate()
-        # vid_process.terminate()
+        vid_process.terminate()
         cmd_process.terminate()
+        # fire_process.terminate()
