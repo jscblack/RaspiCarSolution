@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-12 17:02:27
+LastEditTime : 2022-06-12 23:03:47
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -15,24 +15,29 @@ import json
 from PIL import Image, ImageTk
 import multiprocessing
 from loguru import logger
+from sqlalchemy import false
 
 # config area
 vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
 remotehost = '192.168.1.102'
-ip_addr = remotehost
+ip_addr = localhost
 cmd_list = [
-    '{"cmd":"ping","para":{}}',
-    '{"cmd":"move","para":{"direction":"forward"}}',
-    '{"cmd":"move","para":{"direction":"backward"}}',
-    '{"cmd":"move","para":{"direction":"left"}}',
-    '{"cmd":"move","para":{"direction":"right"}}',
-    '{"cmd":"chmod","para":{"to":"manual"}}',
-    '{"cmd":"chmod","para":{"to":"auto-lane"}}',
-    '{"cmd":"chmod","para":{"to":"auto-avoidance"}}',
-    '{"cmd":"stop","para":{}}',
-    '{"cmd":"envStatus","para":{}}',
+    '{"cmd":"ping","para":"{}"}',  #0
+    '{"cmd":"move","para":{"direction":"forward","behavior":"accelerate"}}',  #1
+    '{"cmd":"move","para":{"direction":"backward","behavior":"accelerate"}}',  #2
+    '{"cmd":"move","para":{"direction":"left","behavior":"accelerate"}}',  #3
+    '{"cmd":"move","para":{"direction":"right","behavior":"accelerate"}}',  #4
+    '{"cmd":"move","para":{"direction":"forward","behavior":"decelerate"}}',  #5
+    '{"cmd":"move","para":{"direction":"backward","behavior":"decelerate"}}',  #6
+    '{"cmd":"move","para":{"direction":"left","behavior":"decelerate"}}',  #7
+    '{"cmd":"move","para":{"direction":"right","behavior":"decelerate"}}',  #8
+    '{"cmd":"chmod","para":{"to":"manual"}}',  #9
+    '{"cmd":"chmod","para":{"to":"auto-lane"}}',  #10
+    '{"cmd":"chmod","para":{"to":"auto-avoidance"}}',  #11
+    '{"cmd":"stop","para":{}}',  #12
+    '{"cmd":"envStatus","para":{}}',  #13
 ]
 
 # config end
@@ -47,7 +52,8 @@ cmd_list = [
 def vid_downstream(que, cmd_que, sta_que):
     while True:
         try:
-            url = 'http://'+str(ip_addr)+':'+str(vid_port)+'/?action=stream'
+            url = 'http://' + str(ip_addr) + ':' + str(
+                vid_port) + '/?action=stream'
             cap = cv2.VideoCapture(url)
             logger.debug('已连接到服务端')
             while True:
@@ -57,7 +63,7 @@ def vid_downstream(que, cmd_que, sta_que):
                     # res=client.recv(1024)
                     # print(len(res))
                     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
-                    img=cv2.flip(img, -1)
+                    img = cv2.flip(img, -1)
                     img_tk = Image.fromarray(img)
                     que.put(img_tk)
                     # cv2.imshow('client_test',img)
@@ -94,7 +100,7 @@ def cmd_upstream(que, cmd_que, sta_que):
                     while True:
                         if not cmd_que.empty():
                             cmd = cmd_que.get()
-                            if cmd == 9:
+                            if cmd == 13:
                                 tic1 = time.perf_counter()
                                 client.send(cmd_list[cmd].encode('utf-8'))
                                 ret = client.recv(512).decode('utf-8')
@@ -141,9 +147,10 @@ def graphMain(que, cmd_que, sta_que):
         file='RaspiCarSolution\\static\\right_arrow.png')
     stop_img = tk.PhotoImage(file='RaspiCarSolution\\static\\stop.png')
     ping_img = tk.PhotoImage(file='RaspiCarSolution\\static\\ping.png')
-    temperature_img = tk.PhotoImage(file='RaspiCarSolution\\static\\temperature.png')
+    temperature_img = tk.PhotoImage(
+        file='RaspiCarSolution\\static\\temperature.png')
     humidity_img = tk.PhotoImage(file='RaspiCarSolution\\static\\humidity.png')
-    
+
     root.title('RaspiCarSolution')
     root.iconbitmap('RaspiCarSolution\\favicon.ico')
     root.geometry('1280x720')
@@ -162,43 +169,66 @@ def graphMain(que, cmd_que, sta_que):
     vid_frame.place(x=213, y=55, width=854, height=480)
 
     # 四个方向键按钮
+    key_down = [False, False, False, False, False]
+
     def sendMoveCmd(event):
-        cmd_que.put(event)
+        if event >= 1 and event <= 4:
+            if key_down[event] == False:
+                cmd_que.put(event)
+                key_down[event] = True
+            else:
+                pass
+        elif event == 12:
+            cmd_que.put(event)
+        else:
+            if key_down[event - 4] == False:
+                cmd_que.put(event - 4)
+                cmd_que.put(event)
+            else:
+                key_down[event - 4] = False
+                cmd_que.put(event)
         radiobut_val.set(1)
 
     def sendChmodCmd(event):
         cmd_que.put(event)
-        radiobut_val.set(event - 4)
+        radiobut_val.set(event - 8)
 
     forward_but = tk.Button(
-        root, image=up_arrow_img, command=lambda: sendMoveCmd(1))
+        root, image=up_arrow_img, command=lambda: sendMoveCmd(5))
     forward_but.place(x=213 + 50, y=550, width=50, height=50)
 
     backward_but = tk.Button(
-        root, image=down_arrow_img, command=lambda: sendMoveCmd(2))
+        root, image=down_arrow_img, command=lambda: sendMoveCmd(6))
     backward_but.place(x=213 + 50, y=550 + 100, width=50, height=50)
     left_but = tk.Button(
-        root, image=left_arrow_img, command=lambda: sendMoveCmd(3))
+        root, image=left_arrow_img, command=lambda: sendMoveCmd(7))
     left_but.place(x=213, y=550 + 50, width=50, height=50)
     right_but = tk.Button(
-        root, image=right_arrow_img, command=lambda: sendMoveCmd(4))
+        root, image=right_arrow_img, command=lambda: sendMoveCmd(8))
     right_but.place(x=213 + 100, y=550 + 50, width=50, height=50)
-    stop_but = tk.Button(root, image=stop_img, command=lambda: sendMoveCmd(8))
+    stop_but = tk.Button(root, image=stop_img, command=lambda: sendMoveCmd(12))
     stop_but.place(x=213 + 50, y=550 + 50, width=50, height=50)
-    stop_but.bind('<KeyPress-x>', sendMoveCmd(8))
+
     # 按键捕获
-    root.bind('<KeyPress-Up>', lambda event: sendMoveCmd(1))
-    root.bind('<KeyPress-Down>', lambda event: sendMoveCmd(2))
-    root.bind('<KeyPress-Left>', lambda event: sendMoveCmd(3))
-    root.bind('<KeyPress-Right>', lambda event: sendMoveCmd(4))
+    # root.bind('<KeyPress-Up>', lambda event: sendMoveCmd(1))
+    # root.bind('<KeyPress-Down>', lambda event: sendMoveCmd(2))
+    # root.bind('<KeyPress-Left>', lambda event: sendMoveCmd(3))
+    # root.bind('<KeyPress-Right>', lambda event: sendMoveCmd(4))
+
     root.bind('<KeyPress-w>', lambda event: sendMoveCmd(1))
     root.bind('<KeyPress-s>', lambda event: sendMoveCmd(2))
     root.bind('<KeyPress-a>', lambda event: sendMoveCmd(3))
     root.bind('<KeyPress-d>', lambda event: sendMoveCmd(4))
-    root.bind('<KeyPress-x>', lambda event: sendMoveCmd(8))
-    root.bind('<KeyPress-1>', lambda event: sendChmodCmd(5))
-    root.bind('<KeyPress-2>', lambda event: sendChmodCmd(6))
-    root.bind('<KeyPress-3>', lambda event: sendChmodCmd(7))
+
+    root.bind('<KeyRelease-w>', lambda event: sendMoveCmd(5))
+    root.bind('<KeyRelease-s>', lambda event: sendMoveCmd(6))
+    root.bind('<KeyRelease-a>', lambda event: sendMoveCmd(7))
+    root.bind('<KeyRelease-d>', lambda event: sendMoveCmd(8))
+
+    root.bind('<KeyPress-x>', lambda event: sendMoveCmd(12))
+    root.bind('<KeyPress-1>', lambda event: sendChmodCmd(9))
+    root.bind('<KeyPress-2>', lambda event: sendChmodCmd(10))
+    root.bind('<KeyPress-3>', lambda event: sendChmodCmd(11))
 
     # 运行模式选择
     mode_label = tk.Label(
@@ -214,7 +244,7 @@ def graphMain(que, cmd_que, sta_que):
         text='Manual',
         font=('Arial', 15),
         value=1,
-        command=lambda: cmd_que.put(5))
+        command=lambda: cmd_que.put(9))
     manual_but.place(x=213 + 450, y=550 + 50, width=90, height=50)
     auto1_but = tk.Radiobutton(
         root,
@@ -222,7 +252,7 @@ def graphMain(que, cmd_que, sta_que):
         text='Auto-Lane',
         font=('Arial', 15),
         value=2,
-        command=lambda: cmd_que.put(6))
+        command=lambda: cmd_que.put(10))
     auto1_but.place(x=213 + 550, y=550 + 50, width=120, height=50)
     auto2_but = tk.Radiobutton(
         root,
@@ -230,19 +260,16 @@ def graphMain(que, cmd_que, sta_que):
         text='Auto-Avoidance',
         font=('Arial', 15),
         value=3,
-        command=lambda: cmd_que.put(7))
+        command=lambda: cmd_que.put(11))
     auto2_but.place(x=213 + 675, y=550 + 50, width=170, height=50)
 
     # 温湿度模块
-    temp_label = tk.Label(
-        root,
-        image=temperature_img)
+    temp_label = tk.Label(root, image=temperature_img)
     temp_label.place(x=213 + 880, y=150, width=100, height=50)
     temp_val = tk.Label(
         root, text='null°C', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
     temp_val.place(x=213 + 950, y=150, width=90, height=50)
-    humi_label = tk.Label(
-        root, image=humidity_img)
+    humi_label = tk.Label(root, image=humidity_img)
     humi_label.place(x=213 + 880, y=200, width=100, height=50)
     humi_val = tk.Label(
         root, text='null%', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
@@ -256,7 +283,7 @@ def graphMain(que, cmd_que, sta_que):
     rtt_val.place(x=60, y=100, width=70, height=50)
 
     def sta_update():
-        cmd_que.put(9)
+        cmd_que.put(13)
         if not sta_que.empty():
             sta, ping = sta_que.get()
             sta = json.loads(sta)
@@ -294,17 +321,16 @@ if __name__ == "__main__":
     graph_process = multiprocessing.Process(
         target=graphMain, args=(que, cmd_que, sta_que))
     graph_process.start()
-    
+
     vid_process = multiprocessing.Process(
         target=vid_downstream, args=(que, cmd_que, sta_que))
-    vid_process.start()
+    # vid_process.start()
 
     cmd_process = multiprocessing.Process(
         target=cmd_upstream, args=(que, cmd_que, sta_que))
     cmd_process.start()
 
-
     def on_closing():
         graph_process.terminate()
-        vid_process.terminate()
+        # vid_process.terminate()
         cmd_process.terminate()
