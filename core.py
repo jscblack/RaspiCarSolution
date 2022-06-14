@@ -1,12 +1,11 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-13 19:17:09
+LastEditTime : 2022-06-14 17:45:34
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 import socket
 import time
-import cv2
 import numpy as np
 import json
 import multiprocessing
@@ -18,8 +17,6 @@ cmd_port = 18082
 localhost = '127.0.0.1'
 remotehost = '192.168.1.102'
 ip_addr = remotehost
-encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), 75]
-
 # config end
 
 
@@ -30,7 +27,7 @@ encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), 75]
 
 def cmd_downstream(cmd2car_que,temp_que):
     while True:
-        server = socket.socket()
+        server = socket.socket()    
         server.bind((ip_addr, cmd_port))
         server.listen(5)
         logger.debug('<指令> 服务端开启监听' + ' ' + str(ip_addr) + ':' + str(cmd_port))
@@ -119,22 +116,26 @@ def cmd_downstream(cmd2car_que,temp_que):
                                     cmd2car_que.put(14)
                                 else:
                                     cmd2car_que.put(18)
-                            if req_data["direction"] == 'down':
+                            elif req_data["direction"] == 'down':
                                 if req_data["sign"] == 'start':
                                     cmd2car_que.put(15)
                                 else:
                                     cmd2car_que.put(19)
-                            if req_data["direction"] == 'left':
+                            elif req_data["direction"] == 'left':
                                 if req_data["sign"] == 'start':
                                     cmd2car_que.put(16)
                                 else:
                                     cmd2car_que.put(20)
-                            if req_data["direction"] == 'right':
+                            elif req_data["direction"] == 'right':
                                 if req_data["sign"] == 'start':
                                     cmd2car_que.put(17)
                                 else:
                                     cmd2car_que.put(21)
-                        
+                            ret_d = json.dumps({
+                                "ret": 200,
+                                "data": 'OK cam to move!'
+                            })
+                            conn.send(ret_d.encode('utf-8'))
                         else:
                             ret_d = json.dumps({
                                 "ret": 404,
@@ -174,7 +175,9 @@ if __name__ == "__main__":
     cmd_process.join()
     car_process.join()
     # fire_process.join()
+    temp_process.join()
     def on_closing():
         cmd_process.terminate()
         car_process.terminate()
+        temp_process.terminate()
         # fire_process.terminate()

@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-13 19:13:46
+LastEditTime : 2022-06-14 17:45:21
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -14,7 +14,7 @@ import json
 from PIL import Image, ImageTk
 import multiprocessing
 from loguru import logger
-import fire_recog
+# import fire_recog
 
 # config area
 vid_port = 18081
@@ -52,14 +52,13 @@ def vid_downstream(que, cmd_que, vid_que_for_fire):
     while True:
         try:
             url = 'http://' + str(ip_addr) + ':' + str(
-                vid_port) + '/?action=stream'
+                vid_port) + '/stream'
             cap = cv2.VideoCapture(url)
             logger.debug('已连接到服务端')
             while True:
                 try:
                     ret, frame = cap.read()
                     # 0-1
-                    frame = cv2.flip(frame, -1)
                     # print('已收到服务器信息：', res.decode('utf-8'))
                     # res=client.recv(1024)
                     # print(len(res))
@@ -194,20 +193,20 @@ def graphMain(que, cmd_que, sta_que, fire_que):
         cmd_que.put(event)
         radiobut_val.set(event - 8)
 
-    navi_key_down=[False,False,False,False]
+    navi_key_down=[False,False,False,False,False]
     def sendCamCmd(event):
         if event >= 14 and event <= 17:
-            if navi_key_down[event] == False:
+            if navi_key_down[event-13] == False:
                 cmd_que.put(event)
-                navi_key_down[event] = True
+                navi_key_down[event-13] = True
             else:
                 pass
         else:
-            if navi_key_down[event - 14] == False:
-                cmd_que.put(event - 14)
+            if navi_key_down[event - 17] == False:
+                cmd_que.put(event - 4)
                 cmd_que.put(event)
             else:
-                navi_key_down[event - 14] = False
+                navi_key_down[event - 17] = False
                 cmd_que.put(event)
 
     forward_but = tk.Button(

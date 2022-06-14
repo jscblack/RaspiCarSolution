@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-13 19:31:40
+LastEditTime : 2022-06-14 17:45:29
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -48,11 +48,11 @@ def car_main(cmd_que):
     enSERVORIGHT = 7
     enSERVOSTOP = 8
 
-    #初始化上下左右角度为90度
-    ServoLeftRightPos = 90
-    ServoUpDownPos = 90
-    g_frontServoPos = 90
-    g_nowfrontPos = 0
+    # #初始化上下左右角度为90度
+    # ServoLeftRightPos = 90
+    # ServoUpDownPos = 90
+    # g_frontServoPos = 90
+    # g_nowfrontPos = 0
 
     #小车电机引脚定义
     IN1 = 20
@@ -192,23 +192,13 @@ def car_main(cmd_que):
         GPIO.output(IN4, GPIO.LOW)
 
     #关闭GPIO口
-    def shutdown():
-        pwm_ENA.stop()
-        pwm_ENB.stop()
-        pwm_rled.stop()
-        pwm_gled.stop()
-        pwm_bled.stop()
-        pwm_FrontServo.stop()
-        pwm_LeftRightServo.stop()
-        pwm_UpDownServo.stop()
-        GPIO.cleanup()
-        logger.debug('车辆动作机构解构完成')
     
     status = {
         'forward': False,
         'backward': False,
         'left': False,
-        'right': False
+        'right': False,
+        'stop':False
     }
 
     def motor_ctl_thread(status):
@@ -221,6 +211,9 @@ def car_main(cmd_que):
         global pwm_ENB
         logger.debug('车辆动作线程开始运行')
         while True:
+            if status['stop']:
+                logger.debug('车辆动作线程结束运行')
+                return
             # 只允许与行进方向相同时的加速行进+转向
             # 不允许向前行进时backward转向
             # 不允许向后行进时forward转向
@@ -329,10 +322,25 @@ def car_main(cmd_que):
                         aheading=True
             elif not status['forward'] and status['backward'] and status['left'] and not status['right']:
                 #0110
-                pass
+                if aheading:
+                    CarSpeedLeft=max(CarSpeedLeft-3*Gradient, 0)
+                    CarSpeedRight=max(CarSpeedRight-3*Gradient, 0)
+                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        aheading=False
+                else:
+                    CarSpeedLeft = max(CarSpeedLeft-Gradient, -maxSpeed)
+                    CarSpeedRight = max(CarSpeedRight-4*Gradient, -maxSpeed)
+
             elif not status['forward'] and status['backward'] and not status['left'] and status['right']:
                 #0101
-                pass
+                if aheading:
+                    CarSpeedLeft=max(CarSpeedLeft-3*Gradient, 0)
+                    CarSpeedRight=max(CarSpeedRight-3*Gradient, 0)
+                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        aheading=False
+                else:
+                    CarSpeedLeft = max(CarSpeedLeft-4*Gradient, -maxSpeed)
+                    CarSpeedRight = max(CarSpeedRight-Gradient, -maxSpeed)
             elif status['forward'] and status['backward'] and status['left'] and not status['right']:
                 #1110
                 pass
@@ -375,14 +383,106 @@ def car_main(cmd_que):
         'up':False,
         'down':False,
         'left':False,
-        'right':False
+        'right':False,
+        'stop':False
     }
 
     def cam_ctl_thread(active):
-        while True:
-            time.sleep(0.2)
-        pass
+        logger.debug('云台动作线程开始运行')
+        global ServoLeftRightPos
+        global ServoUpDownPos
+        global pwm_LeftRightServo
+        global pwm_UpDownServo
+        #初始化上下左右角度为90度
+        ServoLeftRightPos = 54
+        ServoUpDownPos = 60
+        #摄像头舵机左右旋转到指定角度
+        up_down_gradient=3
+        left_right_gradient=3
+        def leftrightservo_appointed_detection(pos): 
+            for i in range(1):   
+                pwm_LeftRightServo.ChangeDutyCycle(2.5 + 10 * pos/180)
+                time.sleep(0.02)							#等待20ms周期结束
+                # pwm_LeftRightServo.ChangeDutyCycle(0)	#归零信号
+
+        #摄像头舵机上下旋转到指定角度
+        def updownservo_appointed_detection(pos):
+            for i in range(1):  
+                pwm_UpDownServo.ChangeDutyCycle(2.5 + 10 * pos/180)
+                time.sleep(0.02)							#等待20ms周期结束
+                # pwm_UpDownServo.ChangeDutyCycle(0)	#归零信号
+
+        #摄像头舵机向上运动
+
+        def servo_up():
+            global ServoUpDownPos
+            ServoUpDownPos=min(180,ServoUpDownPos+up_down_gradient)
+            updownservo_appointed_detection(ServoUpDownPos)
+
+        #摄像头舵机向下运动		
+        def servo_down():
+            global ServoUpDownPos
+            ServoUpDownPos=max(35,ServoUpDownPos-up_down_gradient)
+            updownservo_appointed_detection(ServoUpDownPos)
             
+
+        #摄像头舵机向左运动
+        def servo_left():
+            global ServoLeftRightPos
+            ServoLeftRightPos=min(180,ServoLeftRightPos+left_right_gradient)
+            leftrightservo_appointed_detection(ServoLeftRightPos)
+
+        #摄像头舵机向右运动
+        def servo_right():
+            global ServoLeftRightPos
+            ServoLeftRightPos=max(0,ServoLeftRightPos-left_right_gradient)
+            leftrightservo_appointed_detection(ServoLeftRightPos)
+
+        def servo_stop():
+            pwm_LeftRightServo.ChangeDutyCycle(0)	#归零信号
+            pwm_UpDownServo.ChangeDutyCycle(0)	#归零信号 
+            pwm_FrontServo.ChangeDutyCycle(0)	#归零信号
+        
+        while True:
+            if active['stop']:
+                logger.debug('云台动作线程结束运行')
+                return
+            if active['up'] and not active['down']:
+                servo_up()
+            elif active['down'] and not active['up']:
+                servo_down()
+            if active['left'] and not active['right']:
+                servo_left()
+            elif active['right'] and not active['left']:
+                servo_right()
+            else:
+                servo_stop()
+            # print(ServoLeftRightPos,ServoUpDownPos)
+            time.sleep(0.2)
+
+
+
+    #小车鸣笛
+    def whistle():
+        GPIO.output(buzzer, GPIO.LOW)
+        time.sleep(0.1)
+        GPIO.output(buzzer, GPIO.HIGH)
+        time.sleep(0.001)
+        
+    #七彩灯亮指定颜色
+    def color_led_pwm(iRed,iGreen, iBlue):
+        v_red = (100*iRed)/255
+        v_green = (100*iGreen)/255
+        v_blue = (100*iBlue)/255
+        pwm_rled.ChangeDutyCycle(v_red)
+        pwm_gled.ChangeDutyCycle(v_green)
+        pwm_bled.ChangeDutyCycle(v_blue)
+        time.sleep(0.02)
+    
+
+
+
+    
 
     init()
     running_mode = 1
@@ -398,19 +498,39 @@ def car_main(cmd_que):
     cam_ctl_thread = threading.Thread(
         target=cam_ctl_thread, args=(active, ))
     cam_ctl_thread.start()
+
+    def shutdown():
+        global pwm_ENA
+        global pwm_ENB
+        global pwm_FrontServo
+        global pwm_UpDownServo
+        global pwm_LeftRightServo
+        global pwm_rled
+        global pwm_gled
+        global pwm_bled
+        pwm_ENA.stop()
+        pwm_ENB.stop()
+        pwm_rled.stop()
+        pwm_gled.stop()
+        pwm_bled.stop()
+        pwm_FrontServo.stop()
+        pwm_LeftRightServo.stop()
+        pwm_UpDownServo.stop()
+        GPIO.cleanup()
+
+        logger.debug('车辆动作机构解构完成')
+
+
+    color_led_pwm(255,0,0)
     while True:
         if not cmd_que.empty():
             cmd = cmd_que.get()
-            # cnt = cnt - 1
-            # if cnt == 0:
-            #     shutdown()
-            #     logger.debug('次数用尽运行结束')
-            #     break
 
             if cmd == 1:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
+                    color_led_pwm(255,0, 0)
                 # set gpio here
                 status['forward'] = True
                 logger.debug('车辆给油')
@@ -418,6 +538,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
+                    color_led_pwm(255,0, 0)
                 # set gpio here
                 status['backward'] = True
                 logger.debug('车辆刹车')
@@ -425,6 +546,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
+                    color_led_pwm(255,0, 0)
                 # set gpio here
                 status['left'] = True
                 logger.debug('车辆左转')
@@ -432,6 +554,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
+                    color_led_pwm(255,0, 0)
                 # set gpio here
                 status['right'] = True
                 logger.debug('车辆右转')
@@ -439,6 +562,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
+                    color_led_pwm(255,0, 0)
                 # set gpio here
                 status['forward'] = False
                 logger.debug('车辆停止给油')
@@ -446,6 +570,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
+                    color_led_pwm(255,0, 0)
                 # set gpio here
                 status['backward'] = False
                 logger.debug('车辆停止给油')
@@ -453,6 +578,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
+                    color_led_pwm(255,0, 0)
                 # set gpio here
                 status['left'] = False
                 logger.debug('车辆停止给油')
@@ -460,53 +586,65 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
+                    color_led_pwm(255,0, 0)
                 # set gpio here
                 status['right'] = False
                 logger.debug('车辆停止给油')
             elif cmd == 9:
                 running_mode = 1
+                color_led_pwm(255,0, 0)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到手动模式')
             elif cmd == 10:
                 running_mode = 2
+                color_led_pwm(0,255, 0)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到自动车道模式')
             elif cmd == 11:
                 running_mode = 3
+                color_led_pwm(0,0, 255)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到自动避障模式')
             elif cmd == 12:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
+                    color_led_pwm(255,0, 0)
                     running_mode = 1
                 # set gpio here
                 brake()
                 shutdown()
+                if motor_ctl_thread.is_alive():
+                    status['stop']=True
+                    motor_ctl_thread.join()
+                if cam_ctl_thread.is_alive():
+                    active['stop']=True
+                    cam_ctl_thread.join()
                 logger.debug('车辆停止')
-            elif cmd == 13:
+            elif cmd == 14:
                 active['up'] = True
                 logger.debug('摄像头开始向上')
-            elif cmd == 14:
+            elif cmd == 15:
                 active['down'] = True
                 logger.debug('摄像头开始向下')
-            elif cmd == 15:
+            elif cmd == 16:
                 active['left'] = True
                 logger.debug('摄像头开始向左')
-            elif cmd == 16:
+            elif cmd == 17:
                 active['right'] = True
                 logger.debug('摄像头开始向右')
-            elif cmd == 17:
+            elif cmd == 18:
                 active['up'] = False
                 logger.debug('摄像头停止向上')
-            elif cmd == 18:
+            elif cmd == 19:
                 active['down'] = False
                 logger.debug('摄像头停止向下')
-            elif cmd == 19:
+            elif cmd == 20:
                 active['left'] = False
                 logger.debug('摄像头停止向左')
-            elif cmd == 20:
+            elif cmd == 21:
                 active['right'] = False
                 logger.debug('摄像头停止向右')
+            
         time.sleep(0.1)
 
 if __name__ == "__main__":
