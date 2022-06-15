@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 16:43:37
+LastEditTime : 2022-06-15 20:17:01
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -8,51 +8,10 @@ from loguru import logger
 import RPi.GPIO as GPIO
 import threading
 import time
-
+# 设置只输出info以上的日志
+logger.add(level='INFO')
 
 def car_main(cmd_que):
-
-    #按键值定义
-    run_car = '1'  #按键前
-    back_car = '2'  #按键后
-    left_car = '3'  #按键左
-    right_car = '4'  #按键右
-    stop_car = '0'  #按键停
-
-    #舵机按键值定义
-    front_left_servo = '1'  #前舵机向左
-    front_right_servo = '2'  #前舵机向右
-    up_servo = '3'  #摄像头舵机向上
-    down_servo = '4'  #摄像头舵机向下
-    left_servo = '6'  #摄像头舵机向左
-    right_servo = '7'  #摄像头舵机向右
-    updowninit_servo = '5'  #摄像头舵机上下复位
-    stop_servo = '8'  #舵机停止
-
-    #小车状态值定义
-    enSTOP = 0
-    enRUN = 1
-    enBACK = 2
-    enLEFT = 3
-    enRIGHT = 4
-    enTLEFT = 5
-    enTRIGHT = 6
-
-    #小车舵机定义
-    enFRONTSERVOLEFT = 1
-    enFRONTSERVORIGHT = 2
-    enSERVOUP = 3
-    enSERVODOWN = 4
-    enSERVOUPDOWNINIT = 5
-    enSERVOLEFT = 6
-    enSERVORIGHT = 7
-    enSERVOSTOP = 8
-
-    # #初始化上下左右角度为90度
-    # ServoLeftRightPos = 90
-    # ServoUpDownPos = 90
-    # g_frontServoPos = 90
-    # g_nowfrontPos = 0
 
     #小车电机引脚定义
     IN1 = 20
@@ -101,25 +60,6 @@ def car_main(cmd_que):
     LdrSensorLeft = 7
     LdrSensorRight = 6
 
-    #变量的定义
-    #七彩灯RGB三色变量定义
-    red = 0
-    green = 0
-    blue = 0
-    #小车和舵机状态变量
-    g_CarState = 0
-    g_ServoState = 0
-    #小车速度变量
-    # Gradient=5
-    # aheading=True
-    # CarSpeedLeft = 0
-    # CarSpeedRight = 0
-    #寻迹，避障，寻光变量
-    infrared_track_value = ''
-    infrared_avoid_value = ''
-    LDR_value = ''
-    g_lednum = 0
-
     #电机引脚初始化为输出模式
     #按键引脚初始化为输入模式
     #超声波,RGB三色灯,舵机引脚初始化
@@ -127,9 +67,7 @@ def car_main(cmd_que):
     def init():
         #设置GPIO口为BCM编码方式
         GPIO.setmode(GPIO.BCM)
-        #忽略警告信息
         GPIO.setwarnings(False)
-
         global pwm_ENA
         global pwm_ENB
         global pwm_FrontServo
@@ -180,34 +118,70 @@ def car_main(cmd_que):
         pwm_rled.start(0)
         pwm_gled.start(0)
         pwm_bled.start(0)
-        logger.debug('车辆动作机构初始化完成')
+        logger.info('车辆动作机构初始化完成')
 
     #关闭GPIO口
-    
+    def shutdown():
+        global pwm_ENA
+        global pwm_ENB
+        global pwm_FrontServo
+        global pwm_UpDownServo
+        global pwm_LeftRightServo
+        global pwm_rled
+        global pwm_gled
+        global pwm_bled
+        pwm_ENA.stop()
+        pwm_ENB.stop()
+        pwm_rled.stop()
+        pwm_gled.stop()
+        pwm_bled.stop()
+        pwm_FrontServo.stop()
+        pwm_LeftRightServo.stop()
+        pwm_UpDownServo.stop()
+        GPIO.cleanup()
+        logger.debug('车辆动作机构解构完成')
+
+    #小车鸣笛
+    def whistle():
+        GPIO.output(buzzer, GPIO.LOW)
+        time.sleep(0.1)
+        GPIO.output(buzzer, GPIO.HIGH)
+        time.sleep(0.001)
+
+    #七彩灯亮指定颜色
+    def color_led_pwm(iRed, iGreen, iBlue):
+        v_red = (100 * iRed) / 255
+        v_green = (100 * iGreen) / 255
+        v_blue = (100 * iBlue) / 255
+        pwm_rled.ChangeDutyCycle(v_red)
+        pwm_gled.ChangeDutyCycle(v_green)
+        pwm_bled.ChangeDutyCycle(v_blue)
+        time.sleep(0.02)
+
+    #逻辑变量区
     running_mode = 1
-    
-    close=False
+    close = False
     # mode 1 2 3
     # 1: manual
     # 2: auto-lane
     # 3: auto-avoid
-
     status = {
         'forward': False,
         'backward': False,
         'left': False,
         'right': False
     }
+    active = {'up': False, 'down': False, 'left': False, 'right': False}
 
-    def motor_ctl_thread(status):
-        Gradient=1
-        aheading=True
+    def motor_ctl(status):
+        Gradient = 1
+        aheading = True
         CarSpeedLeft = 0
         CarSpeedRight = 0
         maxSpeed = 50
         global pwm_ENA
         global pwm_ENB
-        logger.debug('车辆动作线程开始运行')
+        logger.info('车辆手动动作线程开始运行')
         while True:
             if close:
                 CarSpeedLeft = 0
@@ -216,138 +190,149 @@ def car_main(cmd_que):
                 GPIO.output(IN2, GPIO.LOW)
                 GPIO.output(IN3, GPIO.LOW)
                 GPIO.output(IN4, GPIO.LOW)
-                logger.debug('车辆动作线程结束运行')
+                logger.warning('车辆手动动作线程结束运行')
                 return
-            if running_mode!=1:
+            if running_mode != 1:
                 time.sleep(0.2)
                 continue
             # 只允许与行进方向相同时的加速行进+转向
             # 不允许向前行进时backward转向
             # 不允许向后行进时forward转向
-            if not status['forward'] and not status['backward'] and not status['left'] and not status['right']:
+            if not status['forward'] and not status['backward'] and not status[
+                    'left'] and not status['right']:
                 #0000
                 if aheading:
                     if CarSpeedLeft != CarSpeedRight:
                         CarSpeedLeft = min(CarSpeedLeft, CarSpeedRight)
                         CarSpeedRight = min(CarSpeedLeft, CarSpeedRight)
                     else:
-                        CarSpeedLeft=max(CarSpeedLeft-Gradient, 0)
-                        CarSpeedRight=max(CarSpeedRight-Gradient, 0)
-                        if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        CarSpeedLeft = max(CarSpeedLeft - Gradient, 0)
+                        CarSpeedRight = max(CarSpeedRight - Gradient, 0)
+                        if (CarSpeedLeft == 0 and CarSpeedRight == 0):
                             pass
                 else:
                     if CarSpeedLeft != CarSpeedRight:
                         CarSpeedLeft = max(CarSpeedLeft, CarSpeedRight)
                         CarSpeedRight = max(CarSpeedLeft, CarSpeedRight)
                     else:
-                        CarSpeedLeft=min(CarSpeedLeft+Gradient, 0)
-                        CarSpeedRight=min(CarSpeedRight+Gradient, 0)
-                        if(CarSpeedLeft==0 and CarSpeedRight==0):
+                        CarSpeedLeft = min(CarSpeedLeft + Gradient, 0)
+                        CarSpeedRight = min(CarSpeedRight + Gradient, 0)
+                        if (CarSpeedLeft == 0 and CarSpeedRight == 0):
                             pass
-            elif status['forward'] and not status['backward'] and not status['left'] and not status['right']:
+            elif status['forward'] and not status['backward'] and not status[
+                    'left'] and not status['right']:
                 #1000
                 if aheading:
                     if CarSpeedLeft != CarSpeedRight:
                         CarSpeedLeft = min(CarSpeedLeft, CarSpeedRight)
                         CarSpeedRight = min(CarSpeedLeft, CarSpeedRight)
-                    CarSpeedLeft = min(CarSpeedLeft+Gradient, maxSpeed)
-                    CarSpeedRight = min(CarSpeedRight+Gradient, maxSpeed)
+                    CarSpeedLeft = min(CarSpeedLeft + Gradient, maxSpeed)
+                    CarSpeedRight = min(CarSpeedRight + Gradient, maxSpeed)
                 else:
                     if CarSpeedLeft != CarSpeedRight:
                         CarSpeedLeft = max(CarSpeedLeft, CarSpeedRight)
                         CarSpeedRight = max(CarSpeedLeft, CarSpeedRight)
-                    CarSpeedLeft = min(CarSpeedLeft+3*Gradient, 0)
-                    CarSpeedRight = min(CarSpeedRight+3*Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
-                        aheading=True
-            elif not status['forward'] and status['backward'] and not status['left'] and not status['right']:
+                    CarSpeedLeft = min(CarSpeedLeft + 3 * Gradient, 0)
+                    CarSpeedRight = min(CarSpeedRight + 3 * Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
+                        aheading = True
+            elif not status['forward'] and status[
+                    'backward'] and not status['left'] and not status['right']:
                 #0100
                 # need further implementation
                 if aheading:
-                    CarSpeedLeft=max(CarSpeedLeft-3*Gradient, 0)
-                    CarSpeedRight=max(CarSpeedRight-3*Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
-                        aheading=False
+                    CarSpeedLeft = max(CarSpeedLeft - 3 * Gradient, 0)
+                    CarSpeedRight = max(CarSpeedRight - 3 * Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
+                        aheading = False
                 else:
-                    CarSpeedLeft = max(CarSpeedLeft-Gradient, -maxSpeed)
-                    CarSpeedRight = max(CarSpeedRight-Gradient, -maxSpeed)
-                        
-            elif not status['forward'] and not status['backward'] and status['left'] and not status['right']:
+                    CarSpeedLeft = max(CarSpeedLeft - Gradient, -maxSpeed)
+                    CarSpeedRight = max(CarSpeedRight - Gradient, -maxSpeed)
+
+            elif not status['forward'] and not status['backward'] and status[
+                    'left'] and not status['right']:
                 #0010
                 if aheading:
                     if CarSpeedLeft != CarSpeedRight:
                         CarSpeedLeft = min(CarSpeedLeft, CarSpeedRight)
                         CarSpeedRight = min(CarSpeedLeft, CarSpeedRight)
-                    CarSpeedLeft=max(CarSpeedLeft-3*Gradient, 0)
-                    CarSpeedRight=max(CarSpeedRight-Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                    CarSpeedLeft = max(CarSpeedLeft - 3 * Gradient, 0)
+                    CarSpeedRight = max(CarSpeedRight - Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
                         pass
                 else:
                     if CarSpeedLeft != CarSpeedRight:
                         CarSpeedLeft = max(CarSpeedLeft, CarSpeedRight)
                         CarSpeedRight = max(CarSpeedLeft, CarSpeedRight)
-                    CarSpeedLeft=min(CarSpeedLeft+3*Gradient, 0)
-                    CarSpeedRight=min(CarSpeedRight+Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                    CarSpeedLeft = min(CarSpeedLeft + 3 * Gradient, 0)
+                    CarSpeedRight = min(CarSpeedRight + Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
                         pass
 
-            elif not status['forward'] and not status['backward'] and not status['left'] and status['right']:
+            elif not status['forward'] and not status[
+                    'backward'] and not status['left'] and status['right']:
                 #0001
                 if aheading:
-                    CarSpeedLeft=max(CarSpeedLeft-Gradient, 0)
-                    CarSpeedRight=max(CarSpeedRight-3*Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                    CarSpeedLeft = max(CarSpeedLeft - Gradient, 0)
+                    CarSpeedRight = max(CarSpeedRight - 3 * Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
                         pass
                 else:
-                    CarSpeedLeft=min(CarSpeedLeft+Gradient, 0)
-                    CarSpeedRight=min(CarSpeedRight+3*Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
+                    CarSpeedLeft = min(CarSpeedLeft + Gradient, 0)
+                    CarSpeedRight = min(CarSpeedRight + 3 * Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
                         pass
-            elif status['forward'] and status['backward'] and not status['left'] and not status['right']:
+            elif status['forward'] and status[
+                    'backward'] and not status['left'] and not status['right']:
                 #1100
                 pass
-            elif status['forward'] and not status['backward'] and status['left'] and not status['right']:
+            elif status['forward'] and not status['backward'] and status[
+                    'left'] and not status['right']:
                 #1010
                 if aheading:
-                    CarSpeedLeft = min(CarSpeedLeft+Gradient, maxSpeed)
-                    CarSpeedRight = min(CarSpeedRight+4*Gradient, maxSpeed)
+                    CarSpeedLeft = min(CarSpeedLeft + Gradient, maxSpeed)
+                    CarSpeedRight = min(CarSpeedRight + 4 * Gradient, maxSpeed)
                 else:
-                    CarSpeedLeft = min(CarSpeedLeft+2*Gradient, 0)
-                    CarSpeedRight = min(CarSpeedRight+2*Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
-                        aheading=True
+                    CarSpeedLeft = min(CarSpeedLeft + 2 * Gradient, 0)
+                    CarSpeedRight = min(CarSpeedRight + 2 * Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
+                        aheading = True
 
-            elif status['forward'] and not status['backward'] and not status['left'] and status['right']:
+            elif status['forward'] and not status['backward'] and not status[
+                    'left'] and status['right']:
                 #1001
                 if aheading:
-                    CarSpeedLeft = min(CarSpeedLeft+4*Gradient, maxSpeed)
-                    CarSpeedRight = min(CarSpeedRight+Gradient, maxSpeed)
+                    CarSpeedLeft = min(CarSpeedLeft + 4 * Gradient, maxSpeed)
+                    CarSpeedRight = min(CarSpeedRight + Gradient, maxSpeed)
                 else:
-                    CarSpeedLeft = min(CarSpeedLeft+2*Gradient, 0)
-                    CarSpeedRight = min(CarSpeedRight+2*Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
-                        aheading=True
-            elif not status['forward'] and status['backward'] and status['left'] and not status['right']:
+                    CarSpeedLeft = min(CarSpeedLeft + 2 * Gradient, 0)
+                    CarSpeedRight = min(CarSpeedRight + 2 * Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
+                        aheading = True
+            elif not status['forward'] and status['backward'] and status[
+                    'left'] and not status['right']:
                 #0110
                 if aheading:
-                    CarSpeedLeft=max(CarSpeedLeft-3*Gradient, 0)
-                    CarSpeedRight=max(CarSpeedRight-3*Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
-                        aheading=False
+                    CarSpeedLeft = max(CarSpeedLeft - 3 * Gradient, 0)
+                    CarSpeedRight = max(CarSpeedRight - 3 * Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
+                        aheading = False
                 else:
-                    CarSpeedLeft = max(CarSpeedLeft-Gradient, -maxSpeed)
-                    CarSpeedRight = max(CarSpeedRight-4*Gradient, -maxSpeed)
+                    CarSpeedLeft = max(CarSpeedLeft - Gradient, -maxSpeed)
+                    CarSpeedRight = max(CarSpeedRight - 4 * Gradient,
+                                        -maxSpeed)
 
-            elif not status['forward'] and status['backward'] and not status['left'] and status['right']:
+            elif not status['forward'] and status[
+                    'backward'] and not status['left'] and status['right']:
                 #0101
                 if aheading:
-                    CarSpeedLeft=max(CarSpeedLeft-3*Gradient, 0)
-                    CarSpeedRight=max(CarSpeedRight-3*Gradient, 0)
-                    if(CarSpeedLeft==0 and CarSpeedRight==0):
-                        aheading=False
+                    CarSpeedLeft = max(CarSpeedLeft - 3 * Gradient, 0)
+                    CarSpeedRight = max(CarSpeedRight - 3 * Gradient, 0)
+                    if (CarSpeedLeft == 0 and CarSpeedRight == 0):
+                        aheading = False
                 else:
-                    CarSpeedLeft = max(CarSpeedLeft-4*Gradient, -maxSpeed)
-                    CarSpeedRight = max(CarSpeedRight-Gradient, -maxSpeed)
+                    CarSpeedLeft = max(CarSpeedLeft - 4 * Gradient, -maxSpeed)
+                    CarSpeedRight = max(CarSpeedRight - Gradient, -maxSpeed)
             else:
                 pass
             # elif status['forward'] and status['backward'] and status['left'] and not status['right']:
@@ -365,9 +350,9 @@ def car_main(cmd_que):
             # elif status['forward'] and status['backward'] and status['left'] and status['right']:
             #     #1111
             #     pass
-            
+
             # logger.debug(str(CarSpeedLeft)+'----'+str(CarSpeedRight))
-            
+
             if CarSpeedLeft > 0:
                 GPIO.output(IN1, GPIO.HIGH)
                 GPIO.output(IN2, GPIO.LOW)
@@ -376,7 +361,7 @@ def car_main(cmd_que):
                 GPIO.output(IN1, GPIO.LOW)
                 GPIO.output(IN2, GPIO.HIGH)
                 pwm_ENA.ChangeDutyCycle(abs(CarSpeedLeft))
-            
+
             if CarSpeedRight > 0:
                 GPIO.output(IN3, GPIO.HIGH)
                 GPIO.output(IN4, GPIO.LOW)
@@ -388,16 +373,7 @@ def car_main(cmd_que):
 
             time.sleep(0.2)
 
-    active={
-        'up':False,
-        'down':False,
-        'left':False,
-        'right':False
-    }
-
-    def cam_ctl_thread(active):
-        
-        logger.debug('云台动作线程开始运行')
+    def cam_ctl(active):
         global ServoLeftRightPos
         global ServoUpDownPos
         global pwm_LeftRightServo
@@ -405,63 +381,62 @@ def car_main(cmd_que):
         #初始化上下左右角度为90度
         ServoLeftRightPos = 54
         ServoUpDownPos = 60
+        up_down_gradient = 3
+        left_right_gradient = 3
+
         #摄像头舵机左右旋转到指定角度
-        up_down_gradient=3
-        left_right_gradient=3
-        def leftrightservo_appointed_detection(pos): 
-            for i in range(1):   
-                pwm_LeftRightServo.ChangeDutyCycle(2.5 + 10 * pos/180)
-                time.sleep(0.02)							#等待20ms周期结束
-                # pwm_LeftRightServo.ChangeDutyCycle(0)	#归零信号
+        def leftrightservo_appointed_detection(pos):
+            for i in range(1):
+                pwm_LeftRightServo.ChangeDutyCycle(2.5 + 10 * pos / 180)
+                time.sleep(0.02)
 
         #摄像头舵机上下旋转到指定角度
         def updownservo_appointed_detection(pos):
-            for i in range(1):  
-                pwm_UpDownServo.ChangeDutyCycle(2.5 + 10 * pos/180)
-                time.sleep(0.02)							#等待20ms周期结束
-                # pwm_UpDownServo.ChangeDutyCycle(0)	#归零信号
+            for i in range(1):
+                pwm_UpDownServo.ChangeDutyCycle(2.5 + 10 * pos / 180)
+                time.sleep(0.02)
 
         def cam_reset():
             leftrightservo_appointed_detection(54)
             updownservo_appointed_detection(60)
-            logger.info('云台已复位')
+            logger.warning('云台已复位')
 
         #摄像头舵机向上运动
-
         def servo_up():
             global ServoUpDownPos
-            ServoUpDownPos=min(180,ServoUpDownPos+up_down_gradient)
+            ServoUpDownPos = min(180, ServoUpDownPos + up_down_gradient)
             updownservo_appointed_detection(ServoUpDownPos)
 
-        #摄像头舵机向下运动		
+        #摄像头舵机向下运动
         def servo_down():
             global ServoUpDownPos
-            ServoUpDownPos=max(35,ServoUpDownPos-up_down_gradient)
+            ServoUpDownPos = max(35, ServoUpDownPos - up_down_gradient)
             updownservo_appointed_detection(ServoUpDownPos)
-            
 
         #摄像头舵机向左运动
         def servo_left():
             global ServoLeftRightPos
-            ServoLeftRightPos=min(180,ServoLeftRightPos+left_right_gradient)
+            ServoLeftRightPos = min(180,
+                                    ServoLeftRightPos + left_right_gradient)
             leftrightservo_appointed_detection(ServoLeftRightPos)
 
         #摄像头舵机向右运动
         def servo_right():
             global ServoLeftRightPos
-            ServoLeftRightPos=max(0,ServoLeftRightPos-left_right_gradient)
+            ServoLeftRightPos = max(0, ServoLeftRightPos - left_right_gradient)
             leftrightservo_appointed_detection(ServoLeftRightPos)
 
         def servo_stop():
-            pwm_LeftRightServo.ChangeDutyCycle(0)	#归零信号
-            pwm_UpDownServo.ChangeDutyCycle(0)	#归零信号 
-            pwm_FrontServo.ChangeDutyCycle(0)	#归零信号
-        
+            pwm_LeftRightServo.ChangeDutyCycle(0)  #归零信号
+            pwm_UpDownServo.ChangeDutyCycle(0)  #归零信号
+            pwm_FrontServo.ChangeDutyCycle(0)  #归零信号
+
+        logger.info('云台动作线程开始运行')
         cam_reset()
         while True:
             if close:
                 cam_reset()
-                logger.debug('云台动作线程结束运行')
+                logger.warning('云台动作线程结束运行')
                 return
             if active['up'] and not active['down']:
                 servo_up()
@@ -473,15 +448,15 @@ def car_main(cmd_que):
                 servo_right()
             else:
                 servo_stop()
-            # print(ServoLeftRightPos,ServoUpDownPos)
             time.sleep(0.2)
 
     def auto_avoidance():
-        maxSpeed=40
-        time_interval=0.30
+        maxSpeed = 40
+        time_interval = 0.30
         global pwm_ENA
         global pwm_ENB
         global pwm_FrontServo
+
         #小车前进
         def run(leftspeed, rightspeed):
             GPIO.output(IN1, GPIO.HIGH)
@@ -499,8 +474,8 @@ def car_main(cmd_que):
             GPIO.output(IN4, GPIO.HIGH)
             pwm_ENA.ChangeDutyCycle(leftspeed)
             pwm_ENB.ChangeDutyCycle(rightspeed)
-            
-        #小车左转	
+
+        #小车左转
         def left(leftspeed, rightspeed):
             GPIO.output(IN1, GPIO.LOW)
             GPIO.output(IN2, GPIO.LOW)
@@ -517,7 +492,7 @@ def car_main(cmd_que):
             GPIO.output(IN4, GPIO.LOW)
             pwm_ENA.ChangeDutyCycle(leftspeed)
             pwm_ENB.ChangeDutyCycle(rightspeed)
-            
+
         #小车原地左转
         def spin_left(leftspeed, rightspeed):
             GPIO.output(IN1, GPIO.LOW)
@@ -536,88 +511,83 @@ def car_main(cmd_que):
             pwm_ENA.ChangeDutyCycle(leftspeed)
             pwm_ENB.ChangeDutyCycle(rightspeed)
 
-        #小车停止	
+        #小车停止
         def brake():
             GPIO.output(IN1, GPIO.LOW)
             GPIO.output(IN2, GPIO.LOW)
             GPIO.output(IN3, GPIO.LOW)
             GPIO.output(IN4, GPIO.LOW)
 
-
         def Distance_test():
-            GPIO.output(TrigPin,GPIO.HIGH)
+            GPIO.output(TrigPin, GPIO.HIGH)
             time.sleep(0.000015)
-            GPIO.output(TrigPin,GPIO.LOW)
+            GPIO.output(TrigPin, GPIO.LOW)
             while not GPIO.input(EchoPin):
                 pass
             t1 = time.time()
             while GPIO.input(EchoPin):
                 pass
             t2 = time.time()
-            # print "distance is %d " % (((t2 - t1)* 340 / 2) * 100)
             time.sleep(0.01)
-            return ((t2 - t1)* 340 / 2) * 100
-        
+            return ((t2 - t1) * 340 / 2) * 100
+
         def servo_appointed_detection(pos):
             for i in range(18):
-                pwm_FrontServo.ChangeDutyCycle(2.5 + 10 * pos/180)
-        
-        logger.debug('自动避障线程开始运行')
+                pwm_FrontServo.ChangeDutyCycle(2.5 + 10 * pos / 180)
 
+        logger.info('车辆自动避障线程开始运行')
         while True:
             if close:
                 GPIO.output(IN1, GPIO.LOW)
                 GPIO.output(IN2, GPIO.LOW)
                 GPIO.output(IN3, GPIO.LOW)
                 GPIO.output(IN4, GPIO.LOW)
-                logger.debug('自动避障线程结束运行')
+                logger.warning('车辆自动避障线程结束运行')
                 return
 
-            if running_mode!=3:
+            if running_mode != 3:
                 time.sleep(0.2)
                 continue
-            
+
             distance = Distance_test()
             logger.debug(str(distance))
             if distance > 50:
-                LeftSensorValue  = GPIO.input(AvoidSensorLeft)
+                LeftSensorValue = GPIO.input(AvoidSensorLeft)
                 RightSensorValue = GPIO.input(AvoidSensorRight)
-                # LeftSensorValue=not LeftSensorValue
-                # RightSensorValue=not RightSensorValue
-                # logger.debug(str(LeftSensorValue)+' '+str(RightSensorValue))
-
-                if LeftSensorValue == True and RightSensorValue == True :
-                    run(maxSpeed, maxSpeed)         #当两侧均未检测到障碍物时调用前进函数
-                elif LeftSensorValue == True and RightSensorValue == False :
-                    spin_left(maxSpeed, maxSpeed)     #右边探测到有障碍物，有信号返回，原地向左转
+                if LeftSensorValue == True and RightSensorValue == True:
+                    run(maxSpeed, maxSpeed)  #当两侧均未检测到障碍物时调用前进函数
+                elif LeftSensorValue == True and RightSensorValue == False:
+                    spin_left(maxSpeed, maxSpeed)  #右边探测到有障碍物，有信号返回，原地向左转
                     time.sleep(time_interval)
                 elif RightSensorValue == True and LeftSensorValue == False:
-                    spin_right(maxSpeed, maxSpeed)    #左边探测到有障碍物，有信号返回，原地向右转
-                    time.sleep(time_interval)				
-                elif RightSensorValue == False and LeftSensorValue == False :
-                    spin_right(maxSpeed*1.5, maxSpeed*1.5)    #当两侧均检测到障碍物时调用固定方向的避障(原地右转)
+                    spin_right(maxSpeed, maxSpeed)  #左边探测到有障碍物，有信号返回，原地向右转
                     time.sleep(time_interval)
-            
+                elif RightSensorValue == False and LeftSensorValue == False:
+                    spin_right(maxSpeed * 1.5,
+                               maxSpeed * 1.5)  #当两侧均检测到障碍物时调用固定方向的避障(原地右转)
+                    time.sleep(time_interval)
+
             elif 30 <= distance <= 50:
                 #遇到障碍物,红外避障模块的指示灯亮,端口电平为LOW
                 #未遇到障碍物,红外避障模块的指示灯灭,端口电平为HIGH
-                LeftSensorValue  = GPIO.input(AvoidSensorLeft)
+                LeftSensorValue = GPIO.input(AvoidSensorLeft)
                 RightSensorValue = GPIO.input(AvoidSensorRight)
 
-                if LeftSensorValue == True and RightSensorValue == True :
-                    run(maxSpeed, maxSpeed)         #当两侧均未检测到障碍物时调用前进函数
-                elif LeftSensorValue == True and RightSensorValue == False :
-                    spin_left(maxSpeed, maxSpeed)     #右边探测到有障碍物，有信号返回，原地向左转
+                if LeftSensorValue == True and RightSensorValue == True:
+                    run(maxSpeed, maxSpeed)  #当两侧均未检测到障碍物时调用前进函数
+                elif LeftSensorValue == True and RightSensorValue == False:
+                    spin_left(maxSpeed, maxSpeed)  #右边探测到有障碍物，有信号返回，原地向左转
                     time.sleep(time_interval)
                 elif RightSensorValue == True and LeftSensorValue == False:
-                    spin_left(maxSpeed, maxSpeed)    #左边探测到有障碍物，有信号返回，原地向右转
-                    time.sleep(time_interval)				
-                elif RightSensorValue == False and LeftSensorValue == False :
-                    spin_left(maxSpeed*1.5, maxSpeed*1.5)    #当两侧均检测到障碍物时调用固定方向的避障(原地右转)
+                    spin_left(maxSpeed, maxSpeed)  #左边探测到有障碍物，有信号返回，原地向右转
+                    time.sleep(time_interval)
+                elif RightSensorValue == False and LeftSensorValue == False:
+                    spin_left(maxSpeed * 1.5,
+                              maxSpeed * 1.5)  #当两侧均检测到障碍物时调用固定方向的避障(原地右转)
                     time.sleep(time_interval)
 
             elif distance < 30:
-                back(maxSpeed//2, maxSpeed//2)
+                back(maxSpeed // 2, maxSpeed // 2)
                 time.sleep(time_interval)
                 brake()
 
@@ -645,75 +615,25 @@ def car_main(cmd_que):
 
                 brake()
             time.sleep(0.8)
-                
 
-
-    #小车鸣笛
-    def whistle():
-        GPIO.output(buzzer, GPIO.LOW)
-        time.sleep(0.1)
-        GPIO.output(buzzer, GPIO.HIGH)
-        time.sleep(0.001)
-        
-    #七彩灯亮指定颜色
-    def color_led_pwm(iRed,iGreen, iBlue):
-        v_red = (100*iRed)/255
-        v_green = (100*iGreen)/255
-        v_blue = (100*iBlue)/255
-        pwm_rled.ChangeDutyCycle(v_red)
-        pwm_gled.ChangeDutyCycle(v_green)
-        pwm_bled.ChangeDutyCycle(v_blue)
-        time.sleep(0.02)
-
-    init()
-    
-
-
-    motor_ctl_thread = threading.Thread(
-        target=motor_ctl_thread, args=(status,))
+    init()  # 初始化
+    motor_ctl_thread = threading.Thread(target=motor_ctl, args=(status, ))
     motor_ctl_thread.start()
-
-    auto_avoidance_thread=threading.Thread(
-        target=auto_avoidance)
+    auto_avoidance_thread = threading.Thread(target=auto_avoidance)
     auto_avoidance_thread.start()
-
-    cam_ctl_thread = threading.Thread(
-        target=cam_ctl_thread, args=(active,))
+    cam_ctl_thread = threading.Thread(target=cam_ctl, args=(active, ))
     cam_ctl_thread.start()
 
-    def shutdown():
-        global pwm_ENA
-        global pwm_ENB
-        global pwm_FrontServo
-        global pwm_UpDownServo
-        global pwm_LeftRightServo
-        global pwm_rled
-        global pwm_gled
-        global pwm_bled
-        pwm_ENA.stop()
-        pwm_ENB.stop()
-        pwm_rled.stop()
-        pwm_gled.stop()
-        pwm_bled.stop()
-        pwm_FrontServo.stop()
-        pwm_LeftRightServo.stop()
-        pwm_UpDownServo.stop()
-        GPIO.cleanup()
-
-        logger.debug('车辆动作机构解构完成')
-
-
-    color_led_pwm(0,0,255)
+    color_led_pwm(0, 0, 255)
     whistle()
     while True:
         if not cmd_que.empty():
             cmd = cmd_que.get()
-
             if cmd == 1:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                 # set gpio here
                 status['forward'] = True
                 logger.debug('车辆给油')
@@ -721,7 +641,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                 # set gpio here
                 status['backward'] = True
                 logger.debug('车辆刹车')
@@ -729,7 +649,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                 # set gpio here
                 status['left'] = True
                 logger.debug('车辆左转')
@@ -737,7 +657,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                 # set gpio here
                 status['right'] = True
                 logger.debug('车辆右转')
@@ -745,7 +665,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                 # set gpio here
                 status['forward'] = False
                 logger.debug('车辆停止给油')
@@ -753,7 +673,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                 # set gpio here
                 status['backward'] = False
                 logger.debug('车辆停止给油')
@@ -761,7 +681,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                 # set gpio here
                 status['left'] = False
                 logger.debug('车辆停止给油')
@@ -769,43 +689,41 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                 # set gpio here
                 status['right'] = False
                 logger.debug('车辆停止给油')
             elif cmd == 9:
                 running_mode = 1
-                color_led_pwm(0,0,255)
+                color_led_pwm(0, 0, 255)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到手动模式')
             elif cmd == 10:
                 running_mode = 2
-                color_led_pwm(255,255, 0)
+                color_led_pwm(255, 255, 0)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到自动车道模式')
             elif cmd == 11:
                 running_mode = 3
-                color_led_pwm(0,0, 255)
+                color_led_pwm(0, 0, 255)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到自动避障模式')
             elif cmd == 12:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
-                    color_led_pwm(0,0,255)
+                    color_led_pwm(0, 0, 255)
                     running_mode = 1
                 # set gpio here
                 whistle()
-                close=True
-                
+                close = True
                 if motor_ctl_thread.is_alive():
                     motor_ctl_thread.join()
                 if cam_ctl_thread.is_alive():
                     cam_ctl_thread.join()
                 if auto_avoidance_thread.is_alive():
                     auto_avoidance_thread.join()
-                
                 shutdown()
-                logger.warning('车辆停止')
+                logger.warning('车辆动作机构线程退出')
             elif cmd == 14:
                 active['up'] = True
                 logger.debug('摄像头开始向上')
@@ -830,8 +748,9 @@ def car_main(cmd_que):
             elif cmd == 21:
                 active['right'] = False
                 logger.debug('摄像头停止向右')
-            
+
         time.sleep(0.1)
+
 
 if __name__ == "__main__":
     pass

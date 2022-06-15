@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 16:43:41
+LastEditTime : 2022-06-15 20:36:09
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -13,33 +13,30 @@ from loguru import logger
 import car
 import sensor_base
 import fire_recog
+import env
 # config area
+vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
 remotehost = '192.168.1.102'
 anyhost = '0.0.0.0'
 ip_addr = anyhost
+logger.add(level='INFO') # 设置只输出info以上的日志
 # config end
 
-
-# def get_status():
-#     # 随机返回一个温湿度
-#     return s
-
-
-def cmd_downstream(cmd2car_que):
+def cmd_downstream(cmd2car_que,sensor2cmd_que):
     while True:
         server = socket.socket()    
         server.bind((ip_addr, cmd_port))
         server.listen(5)
-        logger.debug('<指令> 服务端开启监听' + ' ' + str(ip_addr) + ':' + str(cmd_port))
+        logger.info('<指令> 服务端开启监听' + ' ' + str(ip_addr) + ':' + str(cmd_port))
         cache_temp=0
         cache_humd=0
         cache_fire=0
         while True:
             try:
                 conn, client_addr = server.accept()
-                logger.debug('<指令> 客户端已连接' + ' ' + str(client_addr))
+                logger.info('<指令> 客户端已连接' + ' ' + str(client_addr))
                 while True:
                     try:
                         req = conn.recv(512)
@@ -51,17 +48,8 @@ def cmd_downstream(cmd2car_que):
                             conn.send(ret_d.encode('utf-8'))
 
                         elif req_prased["cmd"] == 'envStatus':
-                            try:
-                                errT,temp_temp,temp_humd=sensor_base.get_temp()
-                                errF,temp_fire=fire_recog.predict_fire('http://127.0.0.1:18081/snapshot')
-                                if errT:
-                                    cache_temp=temp_temp
-                                    cache_humd=temp_humd
-                                if errF:
-                                    cache_fire=temp_fire
-                            except Exception:
-                                logger.error('<指令> 环境信息获取失败')
-                            
+                            if not sensor2cmd_que.empty():
+                                cache_temp,cache_humd,cache_fire = sensor2cmd_que.get()
                             ret_d = json.dumps({
                                 "ret": 200,
                                 "data": json.dumps({
@@ -165,14 +153,16 @@ def cmd_downstream(cmd2car_que):
 
 
 if __name__ == "__main__":
-    # localIP = socket.gethostbyname(socket.gethostname())
-    # ip_addr = localIP
-    # logger.debug('本机IP为' + ' ' + ip_addr)
-
+    sensor2cmd_que=multiprocessing.Queue()
     cmd2car_que = multiprocessing.Queue()
+    
     cmd_process = multiprocessing.Process(
-        target=cmd_downstream, args=(cmd2car_que,), daemon=True)
+        target=cmd_downstream, args=(cmd2car_que,sensor2cmd_que), daemon=True)
     cmd_process.start()
+    
+    sensor_process = multiprocessing.Process(
+        target=env.env_core, args=(sensor2cmd_que,), daemon=True)
+    sensor_process.start()
 
     car_process = multiprocessing.Process(
         target=car.car_main, args=(cmd2car_que,), daemon=True)

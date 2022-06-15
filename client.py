@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 16:44:07
+LastEditTime : 2022-06-15 20:37:21
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -20,7 +20,7 @@ from loguru import logger
 vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
-remotehost = '192.168.1.103'
+remotehost = '192.168.1.102'
 ip_addr = remotehost
 cmd_list = [
     '{"cmd":"ping","para":"{}"}',  #0
@@ -46,58 +46,46 @@ cmd_list = [
     '{"cmd":"cam","para":{"direction":"left","sign":"stop"}}',  #20
     '{"cmd":"cam","para":{"direction":"right","sign":"stop"}}',  #21
 ]
+
 # config end
 
-def vid_downstream(que, cmd_que, vid_que_for_fire):
+
+def vid_downstream(que, cmd_que):
     while True:
         try:
-            url = 'http://' + str(ip_addr) + ':' + str(
-                vid_port) + '/stream'
+            url = 'http://' + str(ip_addr) + ':' + str(vid_port) + '/stream'
             cap = cv2.VideoCapture(url)
-            logger.debug('已连接到服务端')
+            logger.info('<视频> 已连接到服务端')
             while True:
                 try:
                     ret, frame = cap.read()
-                    # 0-1
-                    # print('已收到服务器信息：', res.decode('utf-8'))
-                    # res=client.recv(1024)
-                    # print(len(res))
                     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
                     img_tk = Image.fromarray(img)
                     que.put(img_tk)
-                    if vid_que_for_fire.empty():
-                        vid_que_for_fire.put(frame)
-                    # cv2.imshow('client_test',img)
-                    # key = cv2.waitKey(1) & 0xFF
-                    # if key == ord('q'):  # q键推出
-                    #     break
-                    time.sleep(0.015)
+                    time.sleep(0.015) #用于匹配60fps
                 except Exception:
-                    logger.error('连接终止，尝试重启')
+                    logger.error('<视频> 连接终止，尝试重启')
                     break
         except Exception:
-            logger.error('服务器连接失败，3秒后尝试重启')
+            logger.error('<视频> 服务器连接失败，3秒后尝试重启')
             time.sleep(1)
-            logger.error('服务器连接失败，2秒后尝试重启')
+            logger.error('<视频> 服务器连接失败，2秒后尝试重启')
             time.sleep(1)
-            logger.error('服务器连接失败，1秒后尝试重启')
+            logger.error('<视频> 服务器连接失败，1秒后尝试重启')
             time.sleep(1)
             while not cmd_que.empty():
                 cmd_que.get()
 
 
-def cmd_upstream(que, cmd_que, sta_que):
+def cmd_upstream(cmd_que, sta_que):
     while True:
         try:
             client = socket.socket()
             client.connect((ip_addr, cmd_port))
-            logger.debug('已连接到服务端')
+            logger.info('<指令> 已连接到服务端')
             while True:
                 try:
-                    # cmd is a json-like string
-                    # {"cmd":"move","para":{"direction":"forward"}}
-                    # {'cmd':'getStatus','para':{}}
-                    # {"ret": 200, "data": {}}
+                    # cmd 是一个json字符串，来自于cmd_list
                     while True:
                         if not cmd_que.empty():
                             cmd = cmd_que.get()
@@ -117,26 +105,22 @@ def cmd_upstream(que, cmd_que, sta_que):
 
                         time.sleep(0.02)
 
-                except ConnectionResetError:
-                    logger.error('连接断开，等待重新连接')
-                    client.close()
-                    break
                 except Exception:
-                    logger.error('连接终止，尝试重启')
+                    logger.error('<指令> 连接终止，尝试重启')
                     client.close()
                     break
         except Exception:
-            logger.error('服务器连接失败，3秒后尝试重启')
+            logger.error('<指令> 服务器连接失败，3秒后尝试重启')
             time.sleep(1)
-            logger.error('服务器连接失败，2秒后尝试重启')
+            logger.error('<指令> 服务器连接失败，2秒后尝试重启')
             time.sleep(1)
-            logger.error('服务器连接失败，1秒后尝试重启')
+            logger.error('<指令> 服务器连接失败，1秒后尝试重启')
             time.sleep(1)
-            while not cmd_que.empty():
+            while not cmd_que.empty(): #清空cmd_que
                 cmd_que.get()
 
 
-def graphMain(que, cmd_que, sta_que, fire_que):
+def graphMain(que, cmd_que, sta_que):
     root = tk.Tk()
     #static area
     up_arrow_img = tk.PhotoImage(file='RaspiCarSolution\\static\\up_arrow.png')
@@ -152,10 +136,10 @@ def graphMain(que, cmd_que, sta_que, fire_que):
         file='RaspiCarSolution\\static\\temperature.png')
     humidity_img = tk.PhotoImage(file='RaspiCarSolution\\static\\humidity.png')
     fire_bar_img = tk.PhotoImage(file='RaspiCarSolution\\static\\fire_bar.png')
-    flame_img=tk.PhotoImage(file='RaspiCarSolution\\static\\flame.png')
-    smile_img=tk.PhotoImage(file='RaspiCarSolution\\static\\smile.png')
-    indicator_img=tk.PhotoImage(file='RaspiCarSolution\\static\\indicator.png')
-
+    flame_img = tk.PhotoImage(file='RaspiCarSolution\\static\\flame.png')
+    smile_img = tk.PhotoImage(file='RaspiCarSolution\\static\\smile.png')
+    indicator_img = tk.PhotoImage(
+        file='RaspiCarSolution\\static\\indicator.png')
 
     root.title('RaspiCarSolution')
     root.iconbitmap('RaspiCarSolution\\favicon.ico')
@@ -176,6 +160,7 @@ def graphMain(que, cmd_que, sta_que, fire_que):
 
     # wsad按钮
     wsad_key_down = [False, False, False, False, False]
+
     def sendMoveCmd(event):
         if event >= 1 and event <= 4:
             if wsad_key_down[event] == False:
@@ -198,12 +183,13 @@ def graphMain(que, cmd_que, sta_que, fire_que):
         cmd_que.put(event)
         radiobut_val.set(event - 8)
 
-    navi_key_down=[False,False,False,False,False]
+    navi_key_down = [False, False, False, False, False]
+
     def sendCamCmd(event):
         if event >= 14 and event <= 17:
-            if navi_key_down[event-13] == False:
+            if navi_key_down[event - 13] == False:
                 cmd_que.put(event)
-                navi_key_down[event-13] = True
+                navi_key_down[event - 13] = True
             else:
                 pass
         else:
@@ -308,18 +294,18 @@ def graphMain(que, cmd_que, sta_que, fire_que):
 
     # 火情显示(百分比条)
     fire_label = tk.Label(root, image=fire_bar_img)
-    fire_label.place(x=1010+10, y=300, width=225, height=20)
+    fire_label.place(x=1010 + 10, y=300, width=225, height=20)
     smile_label = tk.Label(root, image=smile_img)
-    smile_label.place(x=1010-15+10, y=260, width=40, height=40)
+    smile_label.place(x=1010 - 15 + 10, y=260, width=40, height=40)
     flame_label = tk.Label(root, image=flame_img)
-    flame_label.place(x=1010+205+10, y=260, width=40, height=40)
-    fire_val=tk.Label(root,image=indicator_img)
-    fire_val.place(x=1007+110,y=320,width=30,height=30)
+    flame_label.place(x=1010 + 205 + 10, y=260, width=40, height=40)
+    fire_val = tk.Label(root, image=indicator_img)
+    fire_val.place(x=1007 + 110, y=320, width=30, height=30)
 
     def sta_send():
         cmd_que.put(13)
-        root.after(5000, sta_send)
-        
+        root.after(2000, sta_send)
+
     def sta_update():
         if not sta_que.empty():
             sta, ping = sta_que.get()
@@ -327,7 +313,8 @@ def graphMain(que, cmd_que, sta_que, fire_que):
             temp_val.config(text=str(sta["temp"]) + '°C')
             humi_val.config(text=str(sta["humi"]) + '%')
             rtt_val.config(text=str(ping)[0:4] + 'ms')
-            fire_val.place(x=1007+sta["fire"]*220,y=320,width=30,height=30)
+            fire_val.place(
+                x=1007 + sta["fire"] * 220, y=320, width=30, height=30)
         root.after(100, sta_update)
 
     def vid_update():
@@ -341,6 +328,7 @@ def graphMain(que, cmd_que, sta_que, fire_que):
             except:
                 pass
         vid_frame.after(5, vid_update)
+
     sta_send()
     vid_update()
     sta_update()
@@ -351,23 +339,20 @@ if __name__ == "__main__":
     vid_que = multiprocessing.Queue()
     cmd_que = multiprocessing.Queue()
     sta_que = multiprocessing.Queue()
-    vid_que_for_fire = multiprocessing.Queue(maxsize=1)
-    fire_que = multiprocessing.Queue()
 
     graph_process = multiprocessing.Process(
-        target=graphMain, args=(vid_que, cmd_que, sta_que, fire_que))
+        target=graphMain, args=(vid_que, cmd_que, sta_que))
     graph_process.start()
 
     vid_process = multiprocessing.Process(
-        target=vid_downstream, args=(vid_que, cmd_que,vid_que_for_fire))
+        target=vid_downstream, args=(vid_que, cmd_que))
     vid_process.start()
 
     cmd_process = multiprocessing.Process(
-        target=cmd_upstream, args=(vid_que, cmd_que, sta_que))
+        target=cmd_upstream, args=(cmd_que, sta_que))
     cmd_process.start()
 
     def on_closing():
         graph_process.terminate()
         vid_process.terminate()
         cmd_process.terminate()
-        # fire_process.terminate()
