@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 09:21:00
+LastEditTime : 2022-06-15 11:05:46
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -325,8 +325,8 @@ def graphMain(que, cmd_que, sta_que, fire_que):
             temp_val.config(text=str(sta["temp"]) + '°C')
             humi_val.config(text=str(sta["humi"]) + '%')
             rtt_val.config(text=str(ping)[0:4] + 'ms')
-            fire_val.config(place=(1007+sta["fire"]*220,320,30,30))
-        temp_val.after(2000, sta_update)
+            fire_val.place(x=1007+sta["fire"]*220,y=320,width=30,height=30)
+        temp_val.after(5000, sta_update)
 
     def vid_update():
         # print(que.qsize())
@@ -358,11 +358,11 @@ if __name__ == "__main__":
 
     vid_process = multiprocessing.Process(
         target=vid_downstream, args=(vid_que, cmd_que,vid_que_for_fire))
-    # vid_process.start()
+    vid_process.start()
 
     cmd_process = multiprocessing.Process(
         target=cmd_upstream, args=(vid_que, cmd_que, sta_que))
-    # cmd_process.start()
+    cmd_process.start()
 
     def on_closing():
         graph_process.terminate()

@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 09:30:45
+LastEditTime : 2022-06-15 11:08:56
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -23,8 +23,7 @@ def predict_fire(url):
     # print(input_details)
     # print(output_details)
 
-    cap=cv2.VideoCapture('url')
-    time.sleep(1)
+    cap=cv2.VideoCapture(url)
     _,img=cap.read()
     img=cv2.resize(img,dsize=(224,224))
     img=cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
@@ -34,9 +33,9 @@ def predict_fire(url):
     # Predict
     interpreter.invoke()
     output_data = interpreter.get_tensor(output_details[0]['index'])
-    print(output_data)
     cap.release()
-    return (1,output_data[0][0])
+    return (1,float(output_data[0][0]))
 
 if __name__ == "__main__":
-    pass
+    predict_fire('http://127.0.0.1:18081/snapshot')
+

@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-14 22:52:55
+LastEditTime : 2022-06-15 11:08:48
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -514,7 +514,8 @@ def car_main(cmd_que):
         logger.debug('车辆动作机构解构完成')
 
 
-    color_led_pwm(255,0,0)
+    color_led_pwm(0,0,255)
+    whistle()
     while True:
         if not cmd_que.empty():
             cmd = cmd_que.get()
@@ -523,7 +524,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                 # set gpio here
                 status['forward'] = True
                 logger.debug('车辆给油')
@@ -531,7 +532,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                 # set gpio here
                 status['backward'] = True
                 logger.debug('车辆刹车')
@@ -539,7 +540,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                 # set gpio here
                 status['left'] = True
                 logger.debug('车辆左转')
@@ -547,7 +548,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                 # set gpio here
                 status['right'] = True
                 logger.debug('车辆右转')
@@ -555,7 +556,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                 # set gpio here
                 status['forward'] = False
                 logger.debug('车辆停止给油')
@@ -563,7 +564,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                 # set gpio here
                 status['backward'] = False
                 logger.debug('车辆停止给油')
@@ -571,7 +572,7 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                 # set gpio here
                 status['left'] = False
                 logger.debug('车辆停止给油')
@@ -579,18 +580,18 @@ def car_main(cmd_que):
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
                     running_mode = 1
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                 # set gpio here
                 status['right'] = False
                 logger.debug('车辆停止给油')
             elif cmd == 9:
                 running_mode = 1
-                color_led_pwm(255,0, 0)
+                color_led_pwm(0,0,255)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到手动模式')
             elif cmd == 10:
                 running_mode = 2
-                color_led_pwm(0,255, 0)
+                color_led_pwm(255,255, 0)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到自动车道模式')
             elif cmd == 11:
@@ -601,9 +602,10 @@ def car_main(cmd_que):
             elif cmd == 12:
                 if running_mode != 1:
                     logger.warning('车辆动作机构已切换到手动模式')
-                    color_led_pwm(255,0, 0)
+                    color_led_pwm(0,0,255)
                     running_mode = 1
                 # set gpio here
+                whistle()
                 if motor_ctl_thread.is_alive():
                     status['stop']=True
                     motor_ctl_thread.join()
