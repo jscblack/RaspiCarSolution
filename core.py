@@ -26,7 +26,7 @@ ip_addr = remotehost
 #     return 
 
 
-def cmd_downstream(cmd2car_que,temp_que):
+def cmd_downstream(cmd2car_que):
     while True:
         server = socket.socket()    
         server.bind((ip_addr, cmd_port))
