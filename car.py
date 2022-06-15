@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 11:08:48
+LastEditTime : 2022-06-15 11:17:01
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -387,6 +387,8 @@ def car_main(cmd_que):
     }
 
     def cam_ctl_thread(active):
+        
+
         logger.debug('云台动作线程开始运行')
         global ServoLeftRightPos
         global ServoUpDownPos
@@ -410,6 +412,11 @@ def car_main(cmd_que):
                 pwm_UpDownServo.ChangeDutyCycle(2.5 + 10 * pos/180)
                 time.sleep(0.02)							#等待20ms周期结束
                 # pwm_UpDownServo.ChangeDutyCycle(0)	#归零信号
+
+        def cam_reset():
+            leftrightservo_appointed_detection(54)
+            ServoUpDownPos(60)
+            logger.info('云台已复位')
 
         #摄像头舵机向上运动
 
@@ -444,6 +451,7 @@ def car_main(cmd_que):
         
         while True:
             if active['stop']:
+                cam_reset()
                 logger.debug('云台动作线程结束运行')
                 return
             if active['up'] and not active['down']:
