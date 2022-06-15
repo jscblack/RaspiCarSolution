@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 11:13:15
+LastEditTime : 2022-06-15 11:21:00
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -52,7 +52,7 @@ def cmd_downstream(cmd2car_que):
                         elif req_prased["cmd"] == 'envStatus':
                             try:
                                 errT,temp_temp,temp_humd=sensor_base.get_temp()
-                                errF,temp_fire=fire_recog.predict_fire('http://192.168.1.102/snapshot')
+                                errF,temp_fire=fire_recog.predict_fire('http://127.0.0.1:18081/snapshot')
                                 if errT:
                                     cache_temp=temp_temp
                                     cache_humd=temp_humd

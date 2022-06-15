@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 11:08:56
+LastEditTime : 2022-06-15 11:21:16
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -13,7 +13,7 @@ import tflite_runtime.interpreter as tflite
 def predict_fire(url):
     logger.info('<TFlite> 开始计算前向网络')
     # Load the TFLite model and allocate tensors.
-    interpreter = tflite.Interpreter(model_path="fire_lite_opt.tflite")
+    interpreter = tflite.Interpreter(model_path="fire_lite.tflite")
     interpreter.allocate_tensors()
 
     # Get input and output tensors.
@@ -37,5 +37,5 @@ def predict_fire(url):
     return (1,float(output_data[0][0]))
 
 if __name__ == "__main__":
-    predict_fire('http://127.0.0.1:18081/snapshot')
+    pass
 

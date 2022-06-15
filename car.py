@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 11:17:01
+LastEditTime : 2022-06-15 11:20:50
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -415,7 +415,7 @@ def car_main(cmd_que):
 
         def cam_reset():
             leftrightservo_appointed_detection(54)
-            ServoUpDownPos(60)
+            updownservo_appointed_detection(60)
             logger.info('云台已复位')
 
         #摄像头舵机向上运动
