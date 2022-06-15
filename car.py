@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 11:20:50
+LastEditTime : 2022-06-15 11:25:03
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -388,7 +388,6 @@ def car_main(cmd_que):
 
     def cam_ctl_thread(active):
         
-
         logger.debug('云台动作线程开始运行')
         global ServoLeftRightPos
         global ServoUpDownPos
@@ -449,6 +448,7 @@ def car_main(cmd_que):
             pwm_UpDownServo.ChangeDutyCycle(0)	#归零信号 
             pwm_FrontServo.ChangeDutyCycle(0)	#归零信号
         
+        cam_reset()
         while True:
             if active['stop']:
                 cam_reset()
