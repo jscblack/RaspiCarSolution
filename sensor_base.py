@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-13 19:03:59
+LastEditTime : 2022-06-15 09:30:48
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -8,7 +8,7 @@ import RPi.GPIO as GPIO
 import time
 from loguru import logger
 
-def get_temp(temp_que):
+def get_temp():
     def delayMicrosecond(t):  # 微秒级延时函数
         start, end = 0, 0  # 声明变量
         start = time.time()  # 记录开始时间
@@ -68,37 +68,38 @@ def get_temp(temp_que):
             else:
                 tmp.append(0)  # 记录接收到的bit为0
 
-    while True:
-        GPIO.setmode(GPIO.BCM)  # 设置为BCM编号模式
-        GPIO.setwarnings(False)
-        del tmp[0:]  # 删除列表
-        DHT11()
-        humidity_bit = tmp[0:8]  # 分隔列表，第0到7位是湿度整数数据
-        humidity_point_bit = tmp[8:16]  # 湿度小数
-        temperature_bit = tmp[16:24]  # 温度整数
-        temperature_point_bit = tmp[24:32]  # 温度小数
-        check_bit = tmp[32:40]  # 校验数据
-        humidity_int = 0
-        humidity_point = 0
-        temperature_int = 0
-        temperature_point = 0
-        check = 0
-        for i in range(8):  # 二进制转换为十进制
-            humidity_int += humidity_bit[i] * 2**(7 - i)
-            humidity_point += humidity_point_bit[i] * 2**(7 - i)
-            temperature_int += temperature_bit[i] * 2**(7 - i)
-            temperature_point += temperature_point_bit[i] * 2**(7 - i)
-            check += check_bit[i] * 2**(7 - i)
+    GPIO.setmode(GPIO.BCM)  # 设置为BCM编号模式
+    GPIO.setwarnings(False)
+    del tmp[0:]  # 删除列表
+    DHT11()
+    humidity_bit = tmp[0:8]  # 分隔列表，第0到7位是湿度整数数据
+    humidity_point_bit = tmp[8:16]  # 湿度小数
+    temperature_bit = tmp[16:24]  # 温度整数
+    temperature_point_bit = tmp[24:32]  # 温度小数
+    check_bit = tmp[32:40]  # 校验数据
+    humidity_int = 0
+    humidity_point = 0
+    temperature_int = 0
+    temperature_point = 0
+    check = 0
+    for i in range(8):  # 二进制转换为十进制
+        humidity_int += humidity_bit[i] * 2**(7 - i)
+        humidity_point += humidity_point_bit[i] * 2**(7 - i)
+        temperature_int += temperature_bit[i] * 2**(7 - i)
+        temperature_point += temperature_point_bit[i] * 2**(7 - i)
+        check += check_bit[i] * 2**(7 - i)
 
-        humidity = humidity_int + humidity_point / 10
-        temperature = temperature_int + temperature_point / 10
+    humidity = humidity_int + humidity_point / 10
+    temperature = temperature_int + temperature_point / 10
 
-        check_tmp = humidity_int + humidity_point + temperature_int + temperature_point
-        if check == check_tmp and temperature != 0 and temperature != 0:  # 判断数据是否正常
-            # print("Temperature is ", temperature,"C\nHumidity is ",humidity,"%")# 打印温湿度数据
-            logger.info('<DHT11> 数据校验通过')
-            temp_que.put((temperature, humidity))
-        else:
-            logger.error('<DHT11> 数据校验出错')
-        time.sleep(2)
+    check_tmp = humidity_int + humidity_point + temperature_int + temperature_point
+    if check == check_tmp and temperature != 0 and temperature != 0:  # 判断数据是否正常
+        # print("Temperature is ", temperature,"C\nHumidity is ",humidity,"%")# 打印温湿度数据
+        logger.info('<DHT11> 数据校验通过')
         GPIO.cleanup()
+        return (1,temperature, humidity)
+    else:
+        logger.error('<DHT11> 数据校验出错')
+        GPIO.cleanup()
+        return (0,temperature, humidity)
+    

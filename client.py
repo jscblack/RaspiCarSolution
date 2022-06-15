@@ -1,12 +1,13 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-14 17:45:21
+LastEditTime : 2022-06-15 09:21:00
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 #客户端
 import tkinter as tk
 import socket
+from turtle import width
 import cv2
 import numpy as np
 import time
@@ -151,6 +152,11 @@ def graphMain(que, cmd_que, sta_que, fire_que):
     temperature_img = tk.PhotoImage(
         file='RaspiCarSolution\\static\\temperature.png')
     humidity_img = tk.PhotoImage(file='RaspiCarSolution\\static\\humidity.png')
+    fire_bar_img = tk.PhotoImage(file='RaspiCarSolution\\static\\fire_bar.png')
+    flame_img=tk.PhotoImage(file='RaspiCarSolution\\static\\flame.png')
+    smile_img=tk.PhotoImage(file='RaspiCarSolution\\static\\smile.png')
+    indicator_img=tk.PhotoImage(file='RaspiCarSolution\\static\\indicator.png')
+
 
     root.title('RaspiCarSolution')
     root.iconbitmap('RaspiCarSolution\\favicon.ico')
@@ -167,7 +173,7 @@ def graphMain(que, cmd_que, sta_que, fire_que):
         font=('Arial', 20))
     label.place(x=0, y=0, width=1280, height=50)
     vid_frame = tk.Label(root)
-    vid_frame.place(x=213, y=55, width=854, height=480)
+    vid_frame.place(x=320, y=55, width=640, height=480)
 
     # wsad按钮
     wsad_key_down = [False, False, False, False, False]
@@ -235,7 +241,6 @@ def graphMain(que, cmd_que, sta_que, fire_que):
     root.bind('<KeyRelease-Left>', lambda event: sendCamCmd(20))
     root.bind('<KeyRelease-Right>', lambda event: sendCamCmd(21))
 
-
     root.bind('<KeyPress-w>', lambda event: sendMoveCmd(1))
     root.bind('<KeyPress-s>', lambda event: sendMoveCmd(2))
     root.bind('<KeyPress-a>', lambda event: sendMoveCmd(3))
@@ -302,6 +307,16 @@ def graphMain(que, cmd_que, sta_que, fire_que):
         root, text='460 ms', fg='#252526', bg='#F0F0F0', font=('Arial', 15))
     rtt_val.place(x=60, y=100, width=70, height=50)
 
+    # 火情显示(百分比条)
+    fire_label = tk.Label(root, image=fire_bar_img)
+    fire_label.place(x=1010+10, y=300, width=225, height=20)
+    smile_label = tk.Label(root, image=smile_img)
+    smile_label.place(x=1010-15+10, y=260, width=40, height=40)
+    flame_label = tk.Label(root, image=flame_img)
+    flame_label.place(x=1010+205+10, y=260, width=40, height=40)
+    fire_val=tk.Label(root,image=indicator_img)
+    fire_val.place(x=1007+110,y=320,width=30,height=30)
+
     def sta_update():
         cmd_que.put(13)
         if not sta_que.empty():
@@ -310,11 +325,7 @@ def graphMain(que, cmd_que, sta_que, fire_que):
             temp_val.config(text=str(sta["temp"]) + '°C')
             humi_val.config(text=str(sta["humi"]) + '%')
             rtt_val.config(text=str(ping)[0:4] + 'ms')
-        # if not fire_que.empty():
-        #     fire,fire_img = fire_que.get()
-        #     logger.debug('fire detected: ' + str(fire))
-        #     cv2.imshow('fire', fire_img)
-
+            fire_val.config(place=(1007+sta["fire"]*220,320,30,30))
         temp_val.after(2000, sta_update)
 
     def vid_update():
@@ -347,16 +358,11 @@ if __name__ == "__main__":
 
     vid_process = multiprocessing.Process(
         target=vid_downstream, args=(vid_que, cmd_que,vid_que_for_fire))
-    vid_process.start()
+    # vid_process.start()
 
     cmd_process = multiprocessing.Process(
         target=cmd_upstream, args=(vid_que, cmd_que, sta_que))
-    cmd_process.start()
-
-    # url = 'http://' + str(ip_addr) + ':' + str(vid_port) + '/?action=stream'
-    # fire_process = multiprocessing.Process(
-    #     target=fire_recog.predict_fire, args=(fire_que,vid_que_for_fire))
-    # fire_process.start()
+    # cmd_process.start()
 
     def on_closing():
         graph_process.terminate()

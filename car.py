@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-14 17:45:29
+LastEditTime : 2022-06-14 22:52:55
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -182,15 +182,6 @@ def car_main(cmd_que):
         pwm_bled.start(0)
         logger.debug('车辆动作机构初始化完成')
 
-    #小车停止
-    def brake():
-        CarSpeedLeft = 0
-        CarSpeedRight = 0
-        GPIO.output(IN1, GPIO.LOW)
-        GPIO.output(IN2, GPIO.LOW)
-        GPIO.output(IN3, GPIO.LOW)
-        GPIO.output(IN4, GPIO.LOW)
-
     #关闭GPIO口
     
     status = {
@@ -212,6 +203,12 @@ def car_main(cmd_que):
         logger.debug('车辆动作线程开始运行')
         while True:
             if status['stop']:
+                CarSpeedLeft = 0
+                CarSpeedRight = 0
+                GPIO.output(IN1, GPIO.LOW)
+                GPIO.output(IN2, GPIO.LOW)
+                GPIO.output(IN3, GPIO.LOW)
+                GPIO.output(IN4, GPIO.LOW)
                 logger.debug('车辆动作线程结束运行')
                 return
             # 只允许与行进方向相同时的加速行进+转向
@@ -341,21 +338,23 @@ def car_main(cmd_que):
                 else:
                     CarSpeedLeft = max(CarSpeedLeft-4*Gradient, -maxSpeed)
                     CarSpeedRight = max(CarSpeedRight-Gradient, -maxSpeed)
-            elif status['forward'] and status['backward'] and status['left'] and not status['right']:
-                #1110
+            else:
                 pass
-            elif status['forward'] and status['backward'] and not status['left'] and status['right']:
-                #1101
-                pass
-            elif not status['forward'] and not status['backward'] and status['left'] and status['right']:
-                #0011
-                pass
-            elif not status['forward'] and not status['backward'] and status['left'] and status['right']:
-                #0011
-                pass
-            elif status['forward'] and status['backward'] and status['left'] and status['right']:
-                #1111
-                pass
+            # elif status['forward'] and status['backward'] and status['left'] and not status['right']:
+            #     #1110
+            #     pass
+            # elif status['forward'] and status['backward'] and not status['left'] and status['right']:
+            #     #1101
+            #     pass
+            # elif not status['forward'] and not status['backward'] and status['left'] and status['right']:
+            #     #0011
+            #     pass
+            # elif not status['forward'] and not status['backward'] and status['left'] and status['right']:
+            #     #0011
+            #     pass
+            # elif status['forward'] and status['backward'] and status['left'] and status['right']:
+            #     #1111
+            #     pass
             
             # logger.debug(str(CarSpeedLeft)+'----'+str(CarSpeedRight))
             
@@ -478,11 +477,6 @@ def car_main(cmd_que):
         pwm_gled.ChangeDutyCycle(v_green)
         pwm_bled.ChangeDutyCycle(v_blue)
         time.sleep(0.02)
-    
-
-
-
-    
 
     init()
     running_mode = 1
@@ -491,7 +485,6 @@ def car_main(cmd_que):
     # 2: auto-lane
     # 3: auto-avoid
 
-    cnt = 100
     motor_ctl_thread = threading.Thread(
         target=motor_ctl_thread, args=(status, ))
     motor_ctl_thread.start()
@@ -611,14 +604,14 @@ def car_main(cmd_que):
                     color_led_pwm(255,0, 0)
                     running_mode = 1
                 # set gpio here
-                brake()
-                shutdown()
                 if motor_ctl_thread.is_alive():
                     status['stop']=True
                     motor_ctl_thread.join()
                 if cam_ctl_thread.is_alive():
                     active['stop']=True
                     cam_ctl_thread.join()
+                
+                shutdown()
                 logger.debug('车辆停止')
             elif cmd == 14:
                 active['up'] = True
