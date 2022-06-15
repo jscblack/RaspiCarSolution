@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 09:30:04
+LastEditTime : 2022-06-15 11:13:15
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -50,13 +50,17 @@ def cmd_downstream(cmd2car_que,temp_que):
                             conn.send(ret_d.encode('utf-8'))
 
                         elif req_prased["cmd"] == 'envStatus':
-                            errT,temp_temp,temp_humd=sensor_base.get_temp()
-                            errF,temp_fire=fire_recog.predict_fire('http://192.168.1.102/snapshot')
-                            if errT:
-                                cache_temp=temp_temp
-                                cache_humd=temp_humd
-                            if errF:
-                                cache_fire=temp_fire
+                            try:
+                                errT,temp_temp,temp_humd=sensor_base.get_temp()
+                                errF,temp_fire=fire_recog.predict_fire('http://192.168.1.102/snapshot')
+                                if errT:
+                                    cache_temp=temp_temp
+                                    cache_humd=temp_humd
+                                if errF:
+                                    cache_fire=temp_fire
+                            except Exception:
+                                logger.error('<指令> 环境信息获取失败')
+                            
                             ret_d = json.dumps({
                                 "ret": 200,
                                 "data": json.dumps({
@@ -166,28 +170,16 @@ if __name__ == "__main__":
 
     cmd2car_que = multiprocessing.Queue()
     cmd_process = multiprocessing.Process(
-        target=cmd_downstream, args=(cmd2car_que), daemon=True)
+        target=cmd_downstream, args=(cmd2car_que,), daemon=True)
     cmd_process.start()
 
     car_process = multiprocessing.Process(
-        target=car.car_main, args=(cmd2car_que, ), daemon=True)
+        target=car.car_main, args=(cmd2car_que,), daemon=True)
     car_process.start()
-
-    # temp_process=multiprocessing.Process(
-    #     target=sensor_base.get_temp, args=(temp_que, ), daemon=True)
-    # temp_process.start()
-
-    # fire_process=multiprocessing.Process(
-    #     target=fire_recog, args=(), daemon=True)
-    # fire_process.start()
     
     # kill process
     cmd_process.join()
     car_process.join()
-    # fire_process.join()
-    # temp_process.join()
     def on_closing():
         cmd_process.terminate()
         car_process.terminate()
-        # temp_process.terminate()
-        # fire_process.terminate()
