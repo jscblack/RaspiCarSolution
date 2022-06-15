@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 11:21:00
+LastEditTime : 2022-06-15 16:43:41
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -17,13 +17,14 @@ import fire_recog
 cmd_port = 18082
 localhost = '127.0.0.1'
 remotehost = '192.168.1.102'
-ip_addr = remotehost
+anyhost = '0.0.0.0'
+ip_addr = anyhost
 # config end
 
 
 # def get_status():
 #     # 随机返回一个温湿度
-#     return 
+#     return s
 
 
 def cmd_downstream(cmd2car_que):

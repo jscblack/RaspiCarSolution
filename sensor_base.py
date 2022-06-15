@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 09:30:48
+LastEditTime : 2022-06-15 16:43:52
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -34,26 +34,26 @@ def get_temp():
         a = time.time()  # 记录循环开始时间
         while GPIO.input(data):  # 一直循环至输入为低电平
             b = time.time()  # 记录结束时间
-            if (b - a) > 0.1:  # 判断循环时间是否超过0.1秒，避免程序进入死循环卡死
+            if (b - a) > 0.05:  # 判断循环时间是否超过0.1秒，避免程序进入死循环卡死
                 break  # 跳出循环
 
         a = time.time()
         while GPIO.input(data) == 0:  # 一直循环至输入为高电平
             b = time.time()
-            if (b - a) > 0.1:
+            if (b - a) > 0.05:
                 break
 
         a = time.time()
         while GPIO.input(data):  # 一直循环至输入为低电平
             b = time.time()
-            if (b - a) >= 0.1:
+            if (b - a) >= 0.05:
                 break
 
         for i in range(40):  # 循环40次，接收温湿度数据
             a = time.time()
             while GPIO.input(data) == 0:  #一直循环至输入为高电平
                 b = time.time()
-                if (b - a) > 0.1:
+                if (b - a) > 0.05:
                     break
 
             delayMicrosecond(28)  # 延时28微秒
@@ -63,7 +63,7 @@ def get_temp():
                 a = time.time()
                 while GPIO.input(data):  # 一直循环至输入为低电平
                     b = time.time()
-                    if (b - a) > 0.1:
+                    if (b - a) > 0.05:
                         break
             else:
                 tmp.append(0)  # 记录接收到的bit为0

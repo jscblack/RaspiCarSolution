@@ -1,13 +1,12 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 11:05:46
+LastEditTime : 2022-06-15 16:44:07
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 #客户端
 import tkinter as tk
 import socket
-from turtle import width
 import cv2
 import numpy as np
 import time
@@ -21,7 +20,7 @@ from loguru import logger
 vid_port = 18081
 cmd_port = 18082
 localhost = '127.0.0.1'
-remotehost = '192.168.1.102'
+remotehost = '192.168.1.103'
 ip_addr = remotehost
 cmd_list = [
     '{"cmd":"ping","para":"{}"}',  #0
@@ -317,8 +316,11 @@ def graphMain(que, cmd_que, sta_que, fire_que):
     fire_val=tk.Label(root,image=indicator_img)
     fire_val.place(x=1007+110,y=320,width=30,height=30)
 
-    def sta_update():
+    def sta_send():
         cmd_que.put(13)
+        root.after(5000, sta_send)
+        
+    def sta_update():
         if not sta_que.empty():
             sta, ping = sta_que.get()
             sta = json.loads(sta)
@@ -326,7 +328,7 @@ def graphMain(que, cmd_que, sta_que, fire_que):
             humi_val.config(text=str(sta["humi"]) + '%')
             rtt_val.config(text=str(ping)[0:4] + 'ms')
             fire_val.place(x=1007+sta["fire"]*220,y=320,width=30,height=30)
-        temp_val.after(5000, sta_update)
+        root.after(100, sta_update)
 
     def vid_update():
         # print(que.qsize())
@@ -339,7 +341,7 @@ def graphMain(que, cmd_que, sta_que, fire_que):
             except:
                 pass
         vid_frame.after(5, vid_update)
-
+    sta_send()
     vid_update()
     sta_update()
     root.mainloop()

@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 11:21:16
+LastEditTime : 2022-06-15 16:43:46
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -13,7 +13,7 @@ import tflite_runtime.interpreter as tflite
 def predict_fire(url):
     logger.info('<TFlite> 开始计算前向网络')
     # Load the TFLite model and allocate tensors.
-    interpreter = tflite.Interpreter(model_path="fire_lite.tflite")
+    interpreter = tflite.Interpreter(model_path='/home/pi/proj/RaspiCarSolution/fire_lite.tflite')
     interpreter.allocate_tensors()
 
     # Get input and output tensors.
