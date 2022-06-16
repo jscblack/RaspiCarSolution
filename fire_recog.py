@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 20:17:38
+LastEditTime : 2022-06-16 15:51:45
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -11,7 +11,6 @@ import time
 import tflite_runtime.interpreter as tflite
 
 def predict_fire(url):
-    logger.add(level='INFO') # 设置只输出info以上的日志
     logger.debug('<TFlite> 开始计算前向网络')
     # Load the TFLite model and allocate tensors.
     interpreter = tflite.Interpreter(model_path='/home/pi/proj/RaspiCarSolution/fire_lite.tflite')

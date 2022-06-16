@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 20:17:52
+LastEditTime : 2022-06-16 15:51:50
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -9,7 +9,6 @@ import time
 from loguru import logger
 
 def get_temp():
-    logger.add(level='INFO') # 设置只输出info以上的日志
     def delayMicrosecond(t):  # 微秒级延时函数
         start, end = 0, 0  # 声明变量
         start = time.time()  # 记录开始时间

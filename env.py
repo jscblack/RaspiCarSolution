@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 20:36:37
+LastEditTime : 2022-06-16 15:51:40
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -11,7 +11,6 @@ import numpy as np
 from loguru import logger
 import time
 
-logger.add(level='INFO') # 设置只输出info以上的日志
 localhost = '127.0.0.1'
 vid_port=18081
 def env_core(sensor2cmd_que):
@@ -28,7 +27,7 @@ def env_core(sensor2cmd_que):
                 cache_humd=temp_humd
             if errF:
                 cache_fire=temp_fire
-            sensor2cmd_que((cache_temp,cache_humd,cache_fire))
+            sensor2cmd_que.put((cache_temp,cache_humd,cache_fire))
         except Exception:
             logger.error('<环境> 环境信息获取失败')
         time.sleep(3)

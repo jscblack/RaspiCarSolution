@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 16:43:57
+LastEditTime : 2022-06-16 15:51:54
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -16,12 +16,19 @@ def spin_left(leftspeed, rightspeed):
     pwm_ENA.ChangeDutyCycle(leftspeed)
     pwm_ENB.ChangeDutyCycle(rightspeed)
 
+def servo_appointed_detection(pos):
+    pwm_FrontServo.ChangeDutyCycle(2.5 + 10 * pos / 180)
+    time.sleep(0.3)
+    pwm_FrontServo.ChangeDutyCycle(0)
+
 IN1 = 20
 IN2 = 21
 IN3 = 19
 IN4 = 26
 ENA = 16
 ENB = 13
+FrontServoPin = 23
+
 #设置GPIO口为BCM编码方式
 GPIO.setmode(GPIO.BCM)
 #忽略警告信息
@@ -32,14 +39,26 @@ GPIO.setup(IN2, GPIO.OUT, initial=GPIO.LOW)
 GPIO.setup(ENB, GPIO.OUT, initial=GPIO.HIGH)
 GPIO.setup(IN3, GPIO.OUT, initial=GPIO.LOW)
 GPIO.setup(IN4, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(FrontServoPin, GPIO.OUT)
+
 pwm_ENA = GPIO.PWM(ENA, 2000)
 pwm_ENB = GPIO.PWM(ENB, 2000)
 pwm_ENA.start(0)
 pwm_ENB.start(0)
-spin_left(20,20)
-time.sleep(0.65)
+pwm_FrontServo = GPIO.PWM(FrontServoPin, 50)
+pwm_FrontServo.start(0)
+
+servo_appointed_detection(-5)
+time.sleep(0.5)
+servo_appointed_detection(88)
+time.sleep(0.5)
+servo_appointed_detection(190)
+time.sleep(0.5)
+servo_appointed_detection(88)
+time.sleep(0.5)
 pwm_ENA.stop()
 pwm_ENB.stop()
+pwm_FrontServo.stop()
 GPIO.cleanup()
 
 

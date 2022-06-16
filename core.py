@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 20:36:09
+LastEditTime : 2022-06-16 15:51:35
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -14,6 +14,7 @@ import car
 import sensor_base
 import fire_recog
 import env
+import sys
 # config area
 vid_port = 18081
 cmd_port = 18082
@@ -21,7 +22,6 @@ localhost = '127.0.0.1'
 remotehost = '192.168.1.102'
 anyhost = '0.0.0.0'
 ip_addr = anyhost
-logger.add(level='INFO') # 设置只输出info以上的日志
 # config end
 
 def cmd_downstream(cmd2car_que,sensor2cmd_que):
@@ -153,6 +153,9 @@ def cmd_downstream(cmd2car_que,sensor2cmd_que):
 
 
 if __name__ == "__main__":
+    logger.remove()
+    logger.add(sys.stdout,level='INFO')
+
     sensor2cmd_que=multiprocessing.Queue()
     cmd2car_que = multiprocessing.Queue()
     

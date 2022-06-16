@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-15 20:17:01
+LastEditTime : 2022-06-16 15:51:30
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -8,11 +8,8 @@ from loguru import logger
 import RPi.GPIO as GPIO
 import threading
 import time
-# 设置只输出info以上的日志
-logger.add(level='INFO')
 
 def car_main(cmd_que):
-
     #小车电机引脚定义
     IN1 = 20
     IN2 = 21
@@ -139,7 +136,7 @@ def car_main(cmd_que):
         pwm_LeftRightServo.stop()
         pwm_UpDownServo.stop()
         GPIO.cleanup()
-        logger.debug('车辆动作机构解构完成')
+        logger.warning('车辆动作机构解构完成')
 
     #小车鸣笛
     def whistle():
@@ -451,7 +448,7 @@ def car_main(cmd_que):
             time.sleep(0.2)
 
     def auto_avoidance():
-        maxSpeed = 40
+        maxSpeed = 20
         time_interval = 0.30
         global pwm_ENA
         global pwm_ENB
@@ -532,16 +529,23 @@ def car_main(cmd_que):
             return ((t2 - t1) * 340 / 2) * 100
 
         def servo_appointed_detection(pos):
-            for i in range(18):
-                pwm_FrontServo.ChangeDutyCycle(2.5 + 10 * pos / 180)
+            pwm_FrontServo.ChangeDutyCycle(2.5 + 10 * pos / 180)
+            time.sleep(0.6)
+
+        def dis_reset():
+            servo_appointed_detection(88)
+            pwm_FrontServo.ChangeDutyCycle(0)
+            logger.warning('距离传感器云台已复位')
 
         logger.info('车辆自动避障线程开始运行')
+        dis_reset()
         while True:
             if close:
                 GPIO.output(IN1, GPIO.LOW)
                 GPIO.output(IN2, GPIO.LOW)
                 GPIO.output(IN3, GPIO.LOW)
                 GPIO.output(IN4, GPIO.LOW)
+                dis_reset()
                 logger.warning('车辆自动避障线程结束运行')
                 return
 
@@ -563,8 +567,8 @@ def car_main(cmd_que):
                     spin_right(maxSpeed, maxSpeed)  #左边探测到有障碍物，有信号返回，原地向右转
                     time.sleep(time_interval)
                 elif RightSensorValue == False and LeftSensorValue == False:
-                    spin_right(maxSpeed * 1.5,
-                               maxSpeed * 1.5)  #当两侧均检测到障碍物时调用固定方向的避障(原地右转)
+                    spin_right(maxSpeed * 2,
+                               maxSpeed * 2)  #当两侧均检测到障碍物时调用固定方向的避障(原地右转)
                     time.sleep(time_interval)
 
             elif 30 <= distance <= 50:
@@ -582,8 +586,8 @@ def car_main(cmd_que):
                     spin_left(maxSpeed, maxSpeed)  #左边探测到有障碍物，有信号返回，原地向右转
                     time.sleep(time_interval)
                 elif RightSensorValue == False and LeftSensorValue == False:
-                    spin_left(maxSpeed * 1.5,
-                              maxSpeed * 1.5)  #当两侧均检测到障碍物时调用固定方向的避障(原地右转)
+                    spin_left(maxSpeed * 2,
+                              maxSpeed * 2)  #当两侧均检测到障碍物时调用固定方向的避障(原地右转)
                     time.sleep(time_interval)
 
             elif distance < 30:
@@ -592,19 +596,29 @@ def car_main(cmd_que):
                 brake()
 
                 #右侧测距
-                servo_appointed_detection(0)
-                time.sleep(0.8)
+                servo_appointed_detection(-5)
+                servo_appointed_detection(-5)
                 rightdistance = Distance_test()
-                #左侧测距
-                servo_appointed_detection(180)
-                time.sleep(0.8)
-                leftdistance = Distance_test()
+                print(rightdistance)
+
                 #前方测距
-                servo_appointed_detection(90)
-                time.sleep(0.8)
+                servo_appointed_detection(88)
+                servo_appointed_detection(88)
                 frontdistance = Distance_test()
+                print(frontdistance)
+                
+                #左侧测距
+                servo_appointed_detection(190)
+                servo_appointed_detection(190)
+                leftdistance = Distance_test()
+                print(leftdistance)
+                
+                servo_appointed_detection(88)
+                servo_appointed_detection(88)
+                
+                pwm_FrontServo.ChangeDutyCycle(0)
                 if leftdistance < 30 and rightdistance < 30 and frontdistance < 30:
-                    spin_right(maxSpeed, maxSpeed)
+                    spin_right(maxSpeed*2, maxSpeed*2)
                     time.sleep(time_interval)
                 elif leftdistance >= rightdistance:
                     spin_left(maxSpeed, maxSpeed)
@@ -614,13 +628,145 @@ def car_main(cmd_que):
                     time.sleep(time_interval)
 
                 brake()
-            time.sleep(0.8)
+            time.sleep(0.5)
+
+    def auto_lane():
+        global pwm_ENA
+        global pwm_ENB
+        #小车前进	
+        def run(leftspeed, rightspeed):
+            GPIO.output(IN1, GPIO.HIGH)
+            GPIO.output(IN2, GPIO.LOW)
+            GPIO.output(IN3, GPIO.HIGH)
+            GPIO.output(IN4, GPIO.LOW)
+            pwm_ENA.ChangeDutyCycle(leftspeed)
+            pwm_ENB.ChangeDutyCycle(rightspeed)
+
+        #小车后退
+        def back(leftspeed, rightspeed):
+            GPIO.output(IN1, GPIO.LOW)
+            GPIO.output(IN2, GPIO.HIGH)
+            GPIO.output(IN3, GPIO.LOW)
+            GPIO.output(IN4, GPIO.HIGH)
+            pwm_ENA.ChangeDutyCycle(leftspeed)
+            pwm_ENB.ChangeDutyCycle(rightspeed)
+            
+        #小车左转	
+        def left(leftspeed, rightspeed):
+            GPIO.output(IN1, GPIO.LOW)
+            GPIO.output(IN2, GPIO.LOW)
+            GPIO.output(IN3, GPIO.HIGH)
+            GPIO.output(IN4, GPIO.LOW)
+            pwm_ENA.ChangeDutyCycle(leftspeed)
+            pwm_ENB.ChangeDutyCycle(rightspeed)
+
+        #小车右转
+        def right(leftspeed, rightspeed):
+            GPIO.output(IN1, GPIO.HIGH)
+            GPIO.output(IN2, GPIO.LOW)
+            GPIO.output(IN3, GPIO.LOW)
+            GPIO.output(IN4, GPIO.LOW)
+            pwm_ENA.ChangeDutyCycle(leftspeed)
+            pwm_ENB.ChangeDutyCycle(rightspeed)
+            
+        #小车原地左转
+        def spin_left(leftspeed, rightspeed):
+            GPIO.output(IN1, GPIO.LOW)
+            GPIO.output(IN2, GPIO.HIGH)
+            GPIO.output(IN3, GPIO.HIGH)
+            GPIO.output(IN4, GPIO.LOW)
+            pwm_ENA.ChangeDutyCycle(leftspeed)
+            pwm_ENB.ChangeDutyCycle(rightspeed)
+
+        #小车原地右转
+        def spin_right(leftspeed, rightspeed):
+            GPIO.output(IN1, GPIO.HIGH)
+            GPIO.output(IN2, GPIO.LOW)
+            GPIO.output(IN3, GPIO.LOW)
+            GPIO.output(IN4, GPIO.HIGH)
+            pwm_ENA.ChangeDutyCycle(leftspeed)
+            pwm_ENB.ChangeDutyCycle(rightspeed)
+
+
+        logger.info('车辆自动寻线线程开始运行')
+        
+        while True:
+            if close:
+                GPIO.output(IN1, GPIO.LOW)
+                GPIO.output(IN2, GPIO.LOW)
+                GPIO.output(IN3, GPIO.LOW)
+                GPIO.output(IN4, GPIO.LOW)
+                logger.warning('车辆自动寻线线程结束运行')
+                return
+
+            if running_mode != 2:
+                time.sleep(0.2)
+                continue
+            #检测到黑线时循迹模块相应的指示灯亮，端口电平为LOW
+            #未检测到黑线时循迹模块相应的指示灯灭，端口电平为HIGH
+            L1  = GPIO.input(TrackSensorLeftPin1)
+            L2  = GPIO.input(TrackSensorLeftPin2)
+            R1 = GPIO.input(TrackSensorRightPin1)
+            R2 = GPIO.input(TrackSensorRightPin2)
+
+            #四路循迹引脚电平状态
+            # 0 0 X 0
+            # 1 0 X 0
+            # 0 1 X 0
+            #以上6种电平状态时小车原地右转
+            #处理右锐角和右直角的转动
+            if (L1 == False or L2 == False) and  R2 == False:
+                spin_right(100, 100)
+                time.sleep(0.08)
+    
+            #四路循迹引脚电平状态
+            # 0 X 0 0       
+            # 0 X 0 1 
+            # 0 X 1 0       
+            #处理左锐角和左直角的转动
+            elif L1 == False and (R1 == False or  R2 == False):
+                spin_left(100, 100)
+                time.sleep(0.08)
+    
+            # 0 X X X
+            #最左边检测到
+            elif L1 == False:
+                spin_left(80, 80)
+        
+            # X X X 0
+            #最右边检测到
+            elif R2 == False:
+                spin_right(80, 80)
+    
+            #四路循迹引脚电平状态
+            # X 0 1 X
+            #处理左小弯
+            elif L2 == False and R1 == True:
+                left(0,90)
+    
+            #四路循迹引脚电平状态
+            # X 1 0 X  
+            #处理右小弯
+            elif L2 == True and R1 == False:
+                right(90, 0)
+    
+            #四路循迹引脚电平状态
+            # X 0 0 X
+            #处理直线
+            elif L2 == False and R1 == False:
+	            run(100, 100)
+            
+            time.sleep(0.3)
+
+
 
     init()  # 初始化
     motor_ctl_thread = threading.Thread(target=motor_ctl, args=(status, ))
     motor_ctl_thread.start()
     auto_avoidance_thread = threading.Thread(target=auto_avoidance)
     auto_avoidance_thread.start()
+    auto_lane_thread=threading.Thread(target=auto_lane)
+    auto_lane_thread.start()
     cam_ctl_thread = threading.Thread(target=cam_ctl, args=(active, ))
     cam_ctl_thread.start()
 
@@ -705,7 +851,7 @@ def car_main(cmd_que):
                 logger.warning('车辆动作机构已切换到自动车道模式')
             elif cmd == 11:
                 running_mode = 3
-                color_led_pwm(0, 0, 255)
+                color_led_pwm(0, 255, 255)
                 # set gpio here
                 logger.warning('车辆动作机构已切换到自动避障模式')
             elif cmd == 12:
@@ -722,6 +868,8 @@ def car_main(cmd_que):
                     cam_ctl_thread.join()
                 if auto_avoidance_thread.is_alive():
                     auto_avoidance_thread.join()
+                if auto_lane_thread.is_alive():
+                    auto_lane_thread.join()
                 shutdown()
                 logger.warning('车辆动作机构线程退出')
             elif cmd == 14:
