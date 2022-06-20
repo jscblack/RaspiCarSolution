@@ -1,18 +1,14 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-16 15:51:35
+LastEditTime : 2022-06-20 17:10:13
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 import socket
-import time
-import numpy as np
 import json
 import multiprocessing
 from loguru import logger
 import car
-import sensor_base
-import fire_recog
 import env
 import sys
 # config area

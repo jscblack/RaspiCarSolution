@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-16 14:45:32
+LastEditTime : 2022-06-20 17:10:07
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -8,7 +8,6 @@ E-mail       : gehrychiang@aliyun.com
 import tkinter as tk
 import socket
 import cv2
-import numpy as np
 import time
 import json
 from PIL import Image, ImageTk

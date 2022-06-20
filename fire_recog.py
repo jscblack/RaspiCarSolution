@@ -1,13 +1,12 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-16 15:51:45
+LastEditTime : 2022-06-20 17:10:18
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
 import numpy as np
 import cv2
 from loguru import logger
-import time
 import tflite_runtime.interpreter as tflite
 
 def predict_fire(url):
