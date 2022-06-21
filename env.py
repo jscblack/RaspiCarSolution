@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-20 17:22:08
+LastEditTime : 2022-06-21 18:07:59
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -45,10 +45,10 @@ def env_core(sensor2cmd_que):
                 cache_humd=temp_humd
             if errF:
                 cache_fire=temp_fire
-                if cache_fire >=0.80:
+                if cache_fire >=0.75:
                     if time.time()-las_warn>60:
                         pushDeer_push('PDU10571TdF4JjUVAjt7ecGA6lff3jeNCxcWBwUZU', "检测到火灾高风险", '检测到火灾高风险，请确认并排除风险')
-                        logger.warning('<环境> 检测到火灾高风险，已发送报警信息')
+                        logger.warning('<环境> 检测到火灾高风险，已发送报警信息（60秒内仅会发送一次）')
                         las_warn=time.time()
                     
             sensor2cmd_que.put((cache_temp,cache_humd,cache_fire))

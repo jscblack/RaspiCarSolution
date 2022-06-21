@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-16 15:51:30
+LastEditTime : 2022-06-21 18:10:37
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -716,7 +716,7 @@ def car_main(cmd_que):
             #以上6种电平状态时小车原地右转
             #处理右锐角和右直角的转动
             if (L1 == False or L2 == False) and  R2 == False:
-                spin_right(100, 100)
+                spin_right(40, 40)
                 time.sleep(0.08)
     
             #四路循迹引脚电平状态
@@ -725,38 +725,38 @@ def car_main(cmd_que):
             # 0 X 1 0       
             #处理左锐角和左直角的转动
             elif L1 == False and (R1 == False or  R2 == False):
-                spin_left(100, 100)
+                spin_left(40, 40)
                 time.sleep(0.08)
     
             # 0 X X X
             #最左边检测到
             elif L1 == False:
-                spin_left(80, 80)
+                spin_left(30, 30)
         
             # X X X 0
             #最右边检测到
             elif R2 == False:
-                spin_right(80, 80)
+                spin_right(30, 30)
     
             #四路循迹引脚电平状态
             # X 0 1 X
             #处理左小弯
             elif L2 == False and R1 == True:
-                left(0,90)
+                left(0,30)
     
             #四路循迹引脚电平状态
             # X 1 0 X  
             #处理右小弯
             elif L2 == True and R1 == False:
-                right(90, 0)
+                right(30, 0)
     
             #四路循迹引脚电平状态
             # X 0 0 X
             #处理直线
             elif L2 == False and R1 == False:
-	            run(100, 100)
+	            run(40, 40)
             
-            time.sleep(0.3)
+            time.sleep(0.2)
 
 
 
