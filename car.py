@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-22 08:37:19
+LastEditTime : 2022-06-22 08:55:01
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -709,29 +709,29 @@ def car_main(cmd_que):
             R2 = GPIO.input(TrackSensorRightPin2)
 
             if (L1 == False or L2 == False) and  R2 == False:
-                spin_right(20, 20)
-                time.sleep(0.02)
+                spin_right(25, 25)
+                time.sleep(0.015)
     
             elif L1 == False and (R1 == False or  R2 == False):
-                spin_left(20, 20)
-                time.sleep(0.02)
+                spin_left(25, 25)
+                time.sleep(0.015)
     
             elif L1 == False:
-                spin_left(20, 20)
+                spin_left(25, 25)
         
             elif R2 == False:
-                spin_right(20, 20)
+                spin_right(25, 25)
     
             elif L2 == False and R1 == True:
-                left(0,20)
+                left(0,25)
     
             elif L2 == True and R1 == False:
-                right(20, 0)
+                right(25, 0)
     
             elif L2 == False and R1 == False:
-	            run(20, 20)
+	            run(15, 15)
             
-            time.sleep(0.02)
+            time.sleep(0.015)
 
 
 
