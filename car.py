@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-22 08:27:49
+LastEditTime : 2022-06-22 08:32:27
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -702,61 +702,36 @@ def car_main(cmd_que):
             if running_mode != 2:
                 time.sleep(0.2)
                 continue
-            #检测到黑线时循迹模块相应的指示灯亮，端口电平为LOW
-            #未检测到黑线时循迹模块相应的指示灯灭，端口电平为HIGH
+
             L1  = GPIO.input(TrackSensorLeftPin1)
             L2  = GPIO.input(TrackSensorLeftPin2)
             R1 = GPIO.input(TrackSensorRightPin1)
             R2 = GPIO.input(TrackSensorRightPin2)
 
-            #四路循迹引脚电平状态
-            # 0 0 X 0
-            # 1 0 X 0
-            # 0 1 X 0
-            #以上6种电平状态时小车原地右转
-            #处理右锐角和右直角的转动
             if (L1 == False or L2 == False) and  R2 == False:
                 spin_right(20, 20)
-                time.sleep(0.08)
+                time.sleep(0.02)
     
-            #四路循迹引脚电平状态
-            # 0 X 0 0       
-            # 0 X 0 1 
-            # 0 X 1 0       
-            #处理左锐角和左直角的转动
             elif L1 == False and (R1 == False or  R2 == False):
                 spin_left(20, 20)
-                time.sleep(0.08)
+                time.sleep(0.02)
     
-            # 0 X X X
-            #最左边检测到
             elif L1 == False:
                 spin_left(10, 10)
         
-            # X X X 0
-            #最右边检测到
             elif R2 == False:
                 spin_right(10, 10)
     
-            #四路循迹引脚电平状态
-            # X 0 1 X
-            #处理左小弯
             elif L2 == False and R1 == True:
                 left(0,20)
     
-            #四路循迹引脚电平状态
-            # X 1 0 X  
-            #处理右小弯
             elif L2 == True and R1 == False:
                 right(20, 0)
     
-            #四路循迹引脚电平状态
-            # X 0 0 X
-            #处理直线
             elif L2 == False and R1 == False:
-	            run(30, 30)
+	            run(20, 20)
             
-            time.sleep(0.08)
+            time.sleep(0.02)
 
 
 
