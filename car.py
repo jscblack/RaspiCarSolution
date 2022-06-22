@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-22 08:55:01
+LastEditTime : 2022-06-22 09:01:02
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -723,13 +723,13 @@ def car_main(cmd_que):
                 spin_right(25, 25)
     
             elif L2 == False and R1 == True:
-                left(0,25)
+                left(0,30)
     
             elif L2 == True and R1 == False:
-                right(25, 0)
+                right(30, 0)
     
             elif L2 == False and R1 == False:
-	            run(15, 15)
+	            run(20, 20)
             
             time.sleep(0.015)
 
