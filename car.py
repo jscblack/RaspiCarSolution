@@ -1,6 +1,6 @@
 '''
 Author       : Gehrychiang
-LastEditTime : 2022-06-22 09:03:22
+LastEditTime : 2022-06-22 09:05:18
 Website      : www.yilantingfeng.site
 E-mail       : gehrychiang@aliyun.com
 '''
@@ -729,7 +729,7 @@ def car_main(cmd_que):
                 right(35, 0)
     
             elif L2 == False and R1 == False:
-	            run(35, 35)
+	            run(27, 27)
             
             time.sleep(0.015)
 
